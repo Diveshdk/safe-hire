@@ -40,14 +40,12 @@ interface ProfileData {
   created_at: string
   nft_certificates?: Array<{
     id: string
-    certificate_id: string
-    institution_name: string
-    program_name: string
-    program_type: string
+    certificate_name: string
+    certificate_type: string
     issue_date: string
-    grade?: string
-    skills?: string[]
-    verification_status: string
+    description?: string
+    nft_code: string
+    metadata?: any
   }>
 }
 
@@ -281,16 +279,16 @@ export function SafeHireIDLookup() {
                             <Award className="w-5 h-5 text-purple-600" />
                           </div>
                           <div>
-                            <h4 className="font-semibold">{cert.program_name}</h4>
+                            <h4 className="font-semibold">{cert.certificate_name}</h4>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Building className="w-3 h-3" />
-                              <span>{cert.institution_name}</span>
+                              <span>NFT Code: {cert.nft_code}</span>
                             </div>
                           </div>
                         </div>
                         
                         <Badge variant="outline" className="capitalize">
-                          {cert.program_type}
+                          {cert.certificate_type}
                         </Badge>
                       </div>
 
@@ -303,19 +301,19 @@ export function SafeHireIDLookup() {
                           </p>
                         </div>
                         
-                        {cert.grade && (
+                        {cert.description && (
                           <div>
-                            <p className="font-medium text-muted-foreground">Grade</p>
-                            <p>{cert.grade}</p>
+                            <p className="font-medium text-muted-foreground">Description</p>
+                            <p className="text-sm">{cert.description}</p>
                           </div>
                         )}
                       </div>
 
-                      {cert.skills && cert.skills.length > 0 && (
+                      {cert.metadata?.skills && cert.metadata.skills.length > 0 && (
                         <div className="mt-3">
                           <p className="font-medium text-muted-foreground mb-2 text-sm">Skills Certified</p>
                           <div className="flex flex-wrap gap-1">
-                            {cert.skills.map((skill, index) => (
+                            {cert.metadata.skills.map((skill: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {skill}
                               </Badge>

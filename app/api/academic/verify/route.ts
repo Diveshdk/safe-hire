@@ -76,8 +76,7 @@ export async function POST(request: Request) {
         year_completed: parseInt(year_completed),
         grade,
         notes: nftCertificate ? `${notes || ''}\n\nNFT Verified: ${nft_code}\nIssued by: ${nftCertificate.profiles?.full_name || 'Institution'}` : notes,
-        created_at: new Date().toISOString(),
-        metadata: nftCertificate ? { nft_verified: true, nft_code: nft_code, certificate_id: nftCertificate.id } : {}
+        created_at: new Date().toISOString()
       })
       .select()
       .single()

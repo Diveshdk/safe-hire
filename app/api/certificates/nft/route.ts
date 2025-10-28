@@ -15,9 +15,10 @@ export async function GET(request: NextRequest) {
 
     // Get user's NFT certificates
     const { data: certificates, error } = await supabase
-      .from('user_nft_certificates')
+      .from('nft_certificates')
       .select('*')
-      .eq('user_id', userId)
+      .eq('claimed_by', userId)
+      .eq('is_claimed', true)
       .order('created_at', { ascending: false })
 
     if (error) {

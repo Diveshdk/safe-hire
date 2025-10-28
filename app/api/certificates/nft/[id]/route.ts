@@ -15,28 +15,32 @@ export async function DELETE(
 
     const certificateId = params.id
 
-    // Delete the NFT certificate (only user's own certificates)
-    const { error: deleteError } = await supabase
-      .from('user_nft_certificates')
-      .delete()
+    // Unclaim the NFT certificate (only user's own certificates)
+    const { error: updateError } = await supabase
+      .from('nft_certificates')
+      .update({
+        is_claimed: false,
+        claimed_by: null,
+        claimed_at: null
+      })
       .eq('id', certificateId)
-      .eq('user_id', user.id) // Ensure user can only delete their own certificates
+      .eq('claimed_by', user.id) // Ensure user can only unclaim their own certificates
 
-    if (deleteError) {
-      console.error('NFT certificate delete error:', deleteError)
+    if (updateError) {
+      console.error('NFT certificate unclaim error:', updateError)
       return NextResponse.json({ 
-        error: "Failed to remove NFT certificate", 
-        details: deleteError.message 
+        error: "Failed to unclaim NFT certificate", 
+        details: updateError.message 
       }, { status: 500 })
     }
 
     return NextResponse.json({ 
       success: true,
-      message: "NFT certificate removed successfully!"
+      message: "NFT certificate unclaimed successfully!"
     })
 
   } catch (error) {
-    console.error('Remove NFT Certificate API error:', error)
+    console.error('Unclaim NFT Certificate API error:', error)
     return NextResponse.json({ 
       error: "Internal server error",
       details: error instanceof Error ? error.message : 'Unknown error'

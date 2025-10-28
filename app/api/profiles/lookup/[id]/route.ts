@@ -62,19 +62,18 @@ export async function GET(
 
     // Get NFT certificates for this profile
     const { data: nftCertificates, error: nftError } = await supabase
-      .from('user_nft_certificates')
+      .from('nft_certificates')
       .select(`
         id,
-        certificate_id,
-        institution_name,
-        program_name,
-        program_type,
+        certificate_name,
+        certificate_type,
         issue_date,
-        grade,
-        skills,
-        verification_status
+        description,
+        nft_code,
+        metadata
       `)
-      .eq('user_id', profile.user_id)
+      .eq('claimed_by', profile.user_id)
+      .eq('is_claimed', true)
       .order('issue_date', { ascending: false })
 
     if (nftError) {

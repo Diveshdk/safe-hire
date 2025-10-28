@@ -18,20 +18,18 @@ import {
   X
 } from "lucide-react"
 
-interface Certificate {
+interface NFTCertificate {
   id: string
-  certificate_id: string
-  institution_name: string
-  program_name: string
-  program_type: string
+  certificate_name: string
+  certificate_type: string
   issue_date: string
-  expiry_date?: string
-  grade?: string
-  skills?: string[]
-  additional_info?: any
-  blockchain_hash?: string
-  ipfs_url?: string
-  verification_status: 'verified' | 'pending' | 'failed'
+  description?: string
+  nft_code: string
+  metadata?: any
+  is_claimed: boolean
+  claimed_by?: string
+  claimed_at?: string
+  created_at: string
 }
 
 interface NFTCertificatesProps {
@@ -39,7 +37,7 @@ interface NFTCertificatesProps {
 }
 
 export function NFTCertificates({ userId }: NFTCertificatesProps) {
-  const [certificates, setCertificates] = useState<Certificate[]>([])
+  const [certificates, setCertificates] = useState<NFTCertificate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [nftTokenId, setNftTokenId] = useState("")
@@ -222,23 +220,25 @@ export function NFTCertificates({ userId }: NFTCertificatesProps) {
                       <Award className="w-6 h-6 text-purple-600" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-lg">{certificate.program_name}</h4>
+                      <h4 className="font-semibold text-lg">{certificate.certificate_name}</h4>
                       <div className="flex items-center gap-2 text-muted-foreground mb-2">
                         <Building className="w-4 h-4" />
-                        <span>{certificate.institution_name}</span>
+                        <span>NFT Code: {certificate.nft_code}</span>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <Badge variant="outline" className="capitalize">
                           <GraduationCap className="w-3 h-3 mr-1" />
-                          {certificate.program_type}
+                          {certificate.certificate_type}
                         </Badge>
-                        {getStatusBadge(certificate.verification_status)}
+                        <Badge className="bg-green-100 text-green-800">
+                          Verified
+                        </Badge>
                       </div>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {certificate.ipfs_url && (
+                    {false && (
                       <Button 
                         variant="outline" 
                         size="sm"
