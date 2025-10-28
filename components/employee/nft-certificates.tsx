@@ -64,7 +64,7 @@ export function NFTCertificates({ userId }: NFTCertificatesProps) {
 
   const addNFTCertificate = async () => {
     if (!nftTokenId.trim()) {
-      toast.error("Please enter an NFT Token ID")
+      toast.error("Please enter an NFT Code")
       return
     }
 
@@ -178,10 +178,10 @@ export function NFTCertificates({ userId }: NFTCertificatesProps) {
           
           <div className="flex gap-3">
             <div className="flex-1">
-              <Label htmlFor="nftTokenId">NFT Token ID</Label>
+              <Label htmlFor="nftTokenId">NFT Code</Label>
               <Input
                 id="nftTokenId"
-                placeholder="Enter your NFT Token ID (e.g., 0x1234...abcd)"
+                placeholder="Enter your NFT Code (e.g., ABC123XYZ456)"
                 value={nftTokenId}
                 onChange={(e) => setNftTokenId(e.target.value)}
                 disabled={isAdding}
@@ -198,7 +198,7 @@ export function NFTCertificates({ userId }: NFTCertificatesProps) {
           </div>
           
           <p className="text-xs text-muted-foreground mt-2">
-            Enter the NFT Token ID you received when your certificate was issued. 
+            Enter the NFT Code you received when your certificate was issued. 
             All certificate details will be automatically retrieved and verified.
           </p>
         </div>

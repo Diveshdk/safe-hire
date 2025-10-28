@@ -31,17 +31,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Look up the certificate data from the issued certificates
-    const { data: issuedCert, error: lookupError } = await supabase
-      .from('issued_certificates')
+    // Look up the certificate by nft_code (which is the nftTokenId)
+    const { data: nftCertificate, error: nftLookupError } = await supabase
+      .from('nft_certificates')
       .select('*')
-      .eq('nft_token_id', nftTokenId)
+      .eq('nft_code', nftTokenId)
       .single()
 
-    if (lookupError || !issuedCert) {
+    if (nftLookupError || !nftCertificate) {
       return NextResponse.json({ 
-        error: "NFT certificate not found. Please check your Token ID or contact the issuing institution." 
+        error: "NFT certificate not found. Please check your NFT code or contact the issuing institution." 
       }, { status: 404 })
+    }
+
+    // Check if already claimed
+    if (nftCertificate.is_claimed) {
+      return NextResponse.json({ 
+        error: "This NFT certificate has already been claimed." 
+      }, { status: 409 })
     }
 
     // Create the NFT certificate record for the user
@@ -50,15 +57,15 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         nft_token_id: nftTokenId,
-        certificate_id: issuedCert.id,
-        institution_name: issuedCert.institution_name,
-        program_name: issuedCert.program_name,
-        program_type: issuedCert.program_type,
-        issue_date: issuedCert.issue_date,
-        grade: issuedCert.grade,
-        skills: issuedCert.skills || [],
-        blockchain_hash: issuedCert.blockchain_hash,
-        verification_status: 'verified' // Since it's from issued_certificates, it's already verified
+        certificate_id: nftCertificate.id,
+        institution_name: nftCertificate.certificate_name, // Use certificate_name from nft_certificates
+        program_name: nftCertificate.certificate_name,
+        program_type: nftCertificate.certificate_type,
+        issue_date: nftCertificate.issue_date,
+        grade: null, // No grade in nft_certificates table
+        skills: [], // Extract from metadata if needed
+        blockchain_hash: nftCertificate.nft_code, // Use nft_code as blockchain reference
+        verification_status: 'verified'
       })
       .select()
       .single()
@@ -69,6 +76,21 @@ export async function POST(request: NextRequest) {
         error: "Failed to add NFT certificate", 
         details: insertError.message 
       }, { status: 500 })
+    }
+
+    // Update the nft_certificates record to mark as claimed
+    const { error: updateError } = await supabase
+      .from('nft_certificates')
+      .update({
+        is_claimed: true,
+        claimed_by: user.id,
+        claimed_at: new Date().toISOString()
+      })
+      .eq('id', nftCertificate.id)
+
+    if (updateError) {
+      console.error('NFT certificate claim update error:', updateError)
+      // Don't fail the request, but log the error
     }
 
     return NextResponse.json({ 
