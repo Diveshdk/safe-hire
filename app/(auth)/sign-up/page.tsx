@@ -44,7 +44,6 @@ export default function SignUpPage() {
   // Step 0 – role
   const [role, setRole] = useState<Role>("job_seeker")
   // Step 1 – account
-  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   // Step 2 – aadhaar (job_seeker / employee only)
@@ -76,7 +75,6 @@ export default function SignUpPage() {
   function goBack() { clearError(); setStep((s) => s - 1) }
 
   function validateStep1() {
-    if (!fullName.trim()) return "Please enter your full name."
     if (!email.trim()) return "Please enter your email."
     if (password.length < 6) return "Password must be at least 6 characters."
     return null
@@ -126,7 +124,7 @@ export default function SignUpPage() {
     const setupRes = await fetch("/api/profile/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ full_name: fullName.trim(), role: roleToSave }),
+      body: JSON.stringify({ full_name: "", role: roleToSave }),
     })
     if (!setupRes.ok) {
       const j = await setupRes.json().catch(() => ({}))
@@ -163,7 +161,7 @@ export default function SignUpPage() {
       await fetch("/api/verify/aadhaar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "demo", fullName: orgName.trim() || fullName.trim() }),
+        body: JSON.stringify({ mode: "demo", fullName: orgName.trim() }),
       }).catch(() => {})
     }
 
@@ -285,16 +283,6 @@ export default function SignUpPage() {
           {/* ── STEP 1: Account Details ── */}
           {step === 1 && (
             <div className="grid gap-4">
-              <div className="grid gap-1.5">
-                <Label htmlFor="su-fullname">Full Name</Label>
-                <Input
-                  id="su-fullname"
-                  placeholder="Priya Sharma"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  autoComplete="name"
-                />
-              </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="su-email">Email Address</Label>
                 <Input

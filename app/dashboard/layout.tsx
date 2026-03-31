@@ -16,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("user_id", user.id)
     .maybeSingle()
 
-  const displayName = profile?.full_name || profile?.aadhaar_full_name || "User"
+  const displayName = profile?.aadhaar_full_name || profile?.full_name || "User"
   const role = profile?.role || "job_seeker"
 
   return (

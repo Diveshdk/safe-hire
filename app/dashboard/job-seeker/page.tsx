@@ -19,7 +19,7 @@ export default async function JobSeekerDashboardPage() {
   if (profile?.role === "employee" || profile?.role === "employer_admin") redirect("/dashboard/employee")
   if (profile?.role === "organisation") redirect("/dashboard/organisation")
 
-  const displayName = profile?.full_name || profile?.aadhaar_full_name || "Job Seeker"
+  const displayName = profile?.aadhaar_full_name || profile?.full_name || "Job Seeker"
 
   // Fetch quick stats
   const { count: appCount } = await supabase

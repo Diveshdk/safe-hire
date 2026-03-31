@@ -19,7 +19,7 @@ export default async function OrganisationDashboardPage() {
   if (profile?.role === "job_seeker") redirect("/dashboard/job-seeker")
   if (profile?.role === "employee" || profile?.role === "employer_admin") redirect("/dashboard/employee")
 
-  const displayName = profile?.full_name || profile?.aadhaar_full_name || "Organisation"
+  const displayName = profile?.aadhaar_full_name || profile?.full_name || "Organisation"
 
   // Fetch recent events
   const { data: events } = await supabase

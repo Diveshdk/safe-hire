@@ -19,7 +19,7 @@ export default async function EmployeeDashboardPage() {
   if (profile?.role === "job_seeker") redirect("/dashboard/job-seeker")
   if (profile?.role === "organisation") redirect("/dashboard/organisation")
 
-  const displayName = profile?.full_name || profile?.aadhaar_full_name || "Employee"
+  const displayName = profile?.aadhaar_full_name || profile?.full_name || "Employee"
 
   // Fetch quick stats
   const { count: jobCount } = await supabase.from("jobs").select("id", { count: "exact", head: true })
