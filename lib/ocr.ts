@@ -161,3 +161,50 @@ export function extractCertificateDetails(text: string): { studentName?: string;
 
   return { studentName, collegeName };
 }
+
+/**
+ * Extract Business details from OCR text (GST, Company Name)
+ */
+export function extractBusinessDetails(text: string): { companyName?: string; gstNumber?: string } {
+  const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0)
+  
+  // 1. Extract GST Number
+  // GST Format: 22AAAAA0000A1Z5 (15 characters)
+  const gstRegex = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/
+  const gstMatch = text.match(gstRegex)
+  const gstNumber = gstMatch ? gstMatch[0] : undefined
+
+  // 2. Extract Company Name
+  // Typically found near the top or after "Name of Entity"
+  let companyName: string | undefined
+  const nameIndicators = ["name", "entity", "sold to", "bill to", "tax invoice", "received from"]
+  
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    const line = lines[i]
+    const lower = line.toLowerCase()
+    
+    // If it's a very short line or known skip line, ignore
+    if (line.length < 5 || ["invoice", "bill", "gst", "receipt"].includes(lower)) continue
+    
+    // Check if the line contains a name indicator
+    const foundIndicator = nameIndicators.find(ind => lower.includes(ind))
+    if (foundIndicator) {
+      // The name might be after the colon or on the next line
+      const parts = line.split(/[:\-]/)
+      if (parts[1] && parts[1].trim().length > 5) {
+        companyName = parts[1].trim()
+        break
+      } else if (lines[i+1] && lines[i+1].length > 5) {
+        companyName = lines[i+1].trim()
+        break
+      }
+    }
+
+    // Default to the first long line if no indicators match (often the header)
+    if (!companyName && line.length > 10 && !/[0-9]/.test(line[0])) {
+      companyName = line
+    }
+  }
+
+  return { companyName, gstNumber }
+}

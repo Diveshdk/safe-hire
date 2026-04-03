@@ -101,27 +101,35 @@ export default function AadhaarOnboardingPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-background flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full">
-        {/* Header */}
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15">
-          <span className="text-primary text-xl font-semibold">SH</span>
+    <main className="min-h-dvh bg-[#F4F4F6] flex items-center justify-center px-4 sm:px-10 py-12 sm:py-24">
+      <div className="max-w-xl w-full">
+        {/* Header content */}
+        <div className="text-center space-y-8 sm:space-y-10 mb-12 sm:mb-16">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-[#18181B] shadow-2xl transform rotate-3">
+            <span className="text-white text-xl font-black">SH</span>
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-4xl sm:text-5xl font-black text-[#18181B] tracking-tight uppercase leading-[0.9]">
+              Identity Anchor
+            </h1>
+            <p className="text-[#71717A] text-base sm:text-lg max-w-sm mx-auto leading-relaxed font-medium">
+              Activate your SafeHire profile with government-backed Aadhaar verification.
+            </p>
+          </div>
         </div>
-        <h1 className="text-3xl font-semibold text-center">Aadhaar Verification</h1>
-        <p className="text-center text-muted-foreground mt-2 text-sm">
-          Required to activate your account. We extract only your name to match with your documents.
-        </p>
 
         {/* Mode tabs */}
-        <div className="mt-6 flex gap-2 justify-center flex-wrap">
+        <div className="flex gap-2 sm:gap-3 justify-center mb-8 sm:mb-10 flex-wrap">
           {MODES.map(({ id, label, icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => { setMode(id); setFile(null); setMessage(null) }}
               className={cn(
-                "flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-all",
-                mode === id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+                "flex items-center gap-2 rounded-xl border px-5 py-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-sm",
+                mode === id 
+                  ? "border-[#18181B] bg-[#18181B] text-white shadow-xl shadow-black/10 scale-105" 
+                  : "border-[#E4E4E7] bg-white text-[#71717A] hover:border-[#18181B] hover:text-[#18181B]"
               )}
             >
               {icon} {label}
@@ -129,81 +137,101 @@ export default function AadhaarOnboardingPage() {
           ))}
         </div>
 
-        {/* Forms */}
-        <div className="mt-6 rounded-2xl border border-border bg-card/40 p-6 backdrop-blur">
+        {/* Forms card */}
+        <div className="bg-white rounded-[2.5rem] sm:rounded-[3.5rem] border border-[#E4E4E7] p-8 sm:p-14 shadow-2xl animate-in fade-in zoom-in-95 duration-500">
           {message && (
             <div className={cn(
-              "mb-4 rounded-lg px-3 py-2 text-sm",
-              message.type === "error" ? "bg-destructive/10 text-destructive" : "bg-green-500/10 text-green-600"
+              "mb-8 rounded-2xl px-5 py-4 text-sm font-bold flex items-center gap-3",
+              message.type === "error" ? "bg-red-50 text-red-600 border border-red-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"
             )}>
+              <div className={cn("h-2 w-2 rounded-full", message.type === "error" ? "bg-red-500" : "bg-emerald-500")} />
               {message.text}
             </div>
           )}
 
           {mode === "ocr" && (
-            <form onSubmit={submitOcr} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="ocr-file">Aadhaar Card Image or PDF</Label>
-                <Input
-                  id="ocr-file"
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Upload a clear front-side photo of your Aadhaar card. We will extract your name and Aadhaar number automatically.
+            <form onSubmit={submitOcr} className="grid gap-8">
+              <div className="grid gap-4">
+                <Label htmlFor="ocr-file" className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A1A1AA] ml-1">Card Image (Front)</Label>
+                <div className="relative group">
+                  <Input
+                    id="ocr-file"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="h-16 pl-6 pr-6 rounded-2xl border-[#E4E4E7] bg-[#FAFAFB] focus:bg-white focus:border-[#18181B] focus:ring-8 focus:ring-[#18181B]/5 transition-all text-sm file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-[#18181B] file:text-white cursor-pointer"
+                    required
+                  />
+                </div>
+                <p className="text-[11px] text-[#71717A] leading-relaxed font-medium ml-1">
+                  Our Secure OCR engine will extract your official name for matching. 
+                  <span className="text-[#18181B] font-bold"> No data is stored permanently.</span>
                 </p>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing OCR…</> : "Verify with OCR"}
-              </Button>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-[#18181B] text-white text-[13px] font-black uppercase tracking-widest h-16 rounded-2xl hover:bg-black transition-all shadow-xl hover:shadow-black/20 hover:-translate-y-1 active:translate-y-0 disabled:opacity-40"
+              >
+                {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin inline-block" /> Verification in Progress…</> : "Initiate Secure Scan"}
+              </button>
             </form>
           )}
 
           {mode === "xml" && (
-            <form onSubmit={submitXml} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="xml-file">Aadhaar Offline eKYC XML</Label>
+            <form onSubmit={submitXml} className="grid gap-8">
+              <div className="grid gap-4">
+                <Label htmlFor="xml-file" className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A1A1AA] ml-1">Offline eKYC XML</Label>
                 <Input
                   id="xml-file"
                   type="file"
                   accept=".xml"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="h-16 pl-6 pr-6 rounded-2xl border-[#E4E4E7] bg-[#FAFAFB] focus:bg-white focus:border-[#18181B] transition-all text-sm file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-[#18181B] file:text-white cursor-pointer"
                   required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Download from{" "}
-                  <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                    myaadhaar.uidai.gov.in
+                <p className="text-[11px] text-[#71717A] leading-relaxed font-medium ml-1">
+                  The most secure method. Download from{" "}
+                  <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold underline">
+                    UIDAI Portal
                   </a>
-                  {" "}→ extract from ZIP → upload the .xml file here.
+                  {" "}and upload the generated XML file here.
                 </p>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying…</> : "Verify XML"}
-              </Button>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-[#18181B] text-white text-[13px] font-black uppercase tracking-widest h-16 rounded-2xl hover:bg-black transition-all shadow-xl hover:shadow-black/20 hover:-translate-y-1 active:translate-y-0 disabled:opacity-40"
+              >
+                {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin inline-block" /> Processing XML…</> : "Secure XML Handshake"}
+              </button>
             </form>
           )}
 
           {mode === "demo" && (
-            <form onSubmit={submitDemo} className="grid gap-4">
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-600">
-                🧪 Demo mode — for testing only. Does not verify a real Aadhaar.
+            <form onSubmit={submitDemo} className="grid gap-8">
+              <div className="rounded-2xl bg-amber-50 border border-amber-100 px-5 py-4 text-[11px] text-amber-700 font-black uppercase tracking-wider flex items-center gap-3">
+                <FlaskConical className="h-4 w-4 shrink-0" />
+                Laboratory Test Environment — No official verification.
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="demo-name">Your Full Name</Label>
+              <div className="grid gap-4">
+                <Label htmlFor="demo-name" className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A1A1AA] ml-1">Full Legal Name</Label>
                 <Input
                   id="demo-name"
-                  placeholder="Priya Sharma"
+                  placeholder="e.g. ARYA SHARMA"
                   value={demoName}
                   onChange={(e) => setDemoName(e.target.value)}
+                  className="h-16 pl-6 pr-6 rounded-2xl border-[#E4E4E7] bg-[#FAFAFB] focus:bg-white focus:border-[#18181B] transition-all text-lg font-bold placeholder:text-[#D1D1D4]"
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying…</> : "Continue with Demo"}
-              </Button>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-[#18181B] text-white text-[13px] font-black uppercase tracking-widest h-16 rounded-2xl hover:bg-black transition-all shadow-xl hover:shadow-black/20 hover:-translate-y-1 active:translate-y-0 disabled:opacity-40"
+              >
+                {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin inline-block" /> Verifying Demo…</> : "Continue with Simulation"}
+              </button>
             </form>
           )}
         </div>

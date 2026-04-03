@@ -23,8 +23,14 @@ export function SignOutButton() {
   }
 
   return (
-    <Button variant="secondary" onClick={onSignOut} disabled={loading}>
-      {loading ? "Signing out…" : "Sign Out"}
-    </Button>
+    <button
+      onClick={onSignOut}
+      disabled={loading}
+      className="w-full text-sm font-medium text-[#71717A] border border-[#E4E4E7] py-2.5 rounded-full hover:bg-[#F4F4F6] hover:text-[#18181B] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+    >
+      {loading ? (
+        <><span className="w-3.5 h-3.5 border-2 border-[#A1A1AA] border-t-transparent rounded-full animate-spin" />Signing out…</>
+      ) : "Sign Out"}
+    </button>
   )
 }

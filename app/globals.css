@@ -1,81 +1,70 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.985 0.002 250);
-  --foreground: oklch(0.17 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.02 260);
+  /* ── Core Palette ── */
+  --background: oklch(0.972 0.003 240);       /* soft warm off-white #F4F4F6 */
+  --foreground: oklch(0.13 0.01 260);          /* near-black */
+  --card: oklch(1 0 0);                        /* pure white */
+  --card-foreground: oklch(0.13 0.01 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.02 260);
-  --primary: oklch(0.45 0.18 264);
+  --popover-foreground: oklch(0.13 0.01 260);
+
+  /* ── Brand ── */
+  --primary: oklch(0.18 0.01 260);             /* dark near-black for pill buttons */
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.965 0.005 260);
+
+  /* ── Supporting ── */
+  --secondary: oklch(0.955 0.004 240);
   --secondary-foreground: oklch(0.25 0.02 260);
-  --muted: oklch(0.96 0.004 260);
-  --muted-foreground: oklch(0.50 0.02 260);
-  --accent: oklch(0.95 0.01 260);
+  --muted: oklch(0.945 0.005 240);
+  --muted-foreground: oklch(0.49 0.02 260);
+  --accent: oklch(0.945 0.005 240);
   --accent-foreground: oklch(0.25 0.02 260);
+
+  /* ── Semantic ── */
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.006 260);
-  --input: oklch(0.91 0.006 260);
-  --ring: oklch(0.45 0.18 264);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.905 0.006 240);
+  --input: oklch(0.905 0.006 240);
+  --ring: oklch(0.18 0.01 260);
+
+  /* ── Radius ── */
+  --radius: 0.75rem;
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.13 0.01 260);
+  --sidebar-primary: oklch(0.18 0.01 260);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.955 0.004 240);
+  --sidebar-accent-foreground: oklch(0.18 0.01 260);
+  --sidebar-border: oklch(0.915 0.005 240);
+  --sidebar-ring: oklch(0.18 0.01 260);
+
+  /* ── Pastel card accents (job/info cards) ── */
+  --pastel-peach: oklch(0.955 0.035 55);       /* warm peach */
+  --pastel-mint: oklch(0.958 0.03 163);        /* soft mint */
+  --pastel-lavender: oklch(0.948 0.03 290);    /* soft lavender */
+  --pastel-sky: oklch(0.952 0.03 220);         /* soft sky blue */
+  --pastel-pink: oklch(0.96 0.028 360);        /* soft pink */
+  --pastel-lemon: oklch(0.968 0.04 100);       /* soft lemon */
+
+  /* ── Chart ── */
   --chart-1: oklch(0.55 0.2 264);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.98 0.003 260);
-  --sidebar-foreground: oklch(0.17 0.02 260);
-  --sidebar-primary: oklch(0.45 0.18 264);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.94 0.01 264);
-  --sidebar-accent-foreground: oklch(0.25 0.02 260);
-  --sidebar-border: oklch(0.91 0.006 260);
-  --sidebar-ring: oklch(0.45 0.18 264);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.488 0.243 264.376); /* brand purple */
-  --primary-foreground: oklch(0.985 0 0); /* white text on purple */
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
-}
+/* No dark mode override — app is light by default */
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -113,13 +102,64 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Pastel tokens */
+  --color-pastel-peach: var(--pastel-peach);
+  --color-pastel-mint: var(--pastel-mint);
+  --color-pastel-lavender: var(--pastel-lavender);
+  --color-pastel-sky: var(--pastel-sky);
+  --color-pastel-pink: var(--pastel-pink);
+  --color-pastel-lemon: var(--pastel-lemon);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* ── Utility classes for pastel cards ── */
+.card-pastel-peach  { background-color: var(--pastel-peach); }
+.card-pastel-mint   { background-color: var(--pastel-mint); }
+.card-pastel-lavender { background-color: var(--pastel-lavender); }
+.card-pastel-sky    { background-color: var(--pastel-sky); }
+.card-pastel-pink   { background-color: var(--pastel-pink); }
+.card-pastel-lemon  { background-color: var(--pastel-lemon); }
+
+/* ── Pill button override ── */
+.btn-pill {
+  border-radius: 9999px !important;
+}
+
+/* ── Card hover lift ── */
+.card-hover {
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.card-hover:hover {
+  box-shadow: 0 8px 30px -6px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+
+/* ── Smooth scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.82 0.005 240); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.7 0.01 240); }
+
+/* ── Select element consistent styling ── */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px !important;
 }

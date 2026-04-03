@@ -1,7 +1,13 @@
 import { getSupabaseServer } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { ShieldCheck, PlusCircle, Trophy, GraduationCap, ExternalLink, Building2 } from "lucide-react"
+import { ShieldCheck, PlusCircle, Trophy, GraduationCap, ExternalLink, Building2, ArrowRight } from "lucide-react"
 import Link from "next/link"
+
+const PASTEL_CYCLE = [
+  { bg: "card-pastel-lavender", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  { bg: "card-pastel-peach", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+  { bg: "card-pastel-sky", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+]
 
 export default async function OrganisationDashboardPage() {
   const supabase = getSupabaseServer()
@@ -21,7 +27,6 @@ export default async function OrganisationDashboardPage() {
 
   const displayName = profile?.aadhaar_full_name || profile?.full_name || "Organisation"
 
-  // Fetch recent events
   const { data: events } = await supabase
     .from("events")
     .select("id, title, achievement, created_at")
@@ -31,87 +36,95 @@ export default async function OrganisationDashboardPage() {
 
   const actions = [
     {
-      icon: <PlusCircle className="h-6 w-6 text-primary" />,
+      icon: <PlusCircle className="h-5 w-5" />,
       title: "Create Event",
       desc: "Set up an event with dynamic custom fields for certificate generation.",
       href: "/dashboard/organisation/events",
-      active: true,
     },
     {
-      icon: <Trophy className="h-6 w-6 text-amber-500" />,
+      icon: <Trophy className="h-5 w-5" />,
       title: "Manage Events & Certificates",
       desc: "View all events and distribute certificates to SafeHire IDs.",
       href: "/dashboard/organisation/events",
-      active: true,
     },
     {
-      icon: <GraduationCap className="h-6 w-6 text-blue-500" />,
+      icon: <GraduationCap className="h-5 w-5" />,
       title: "Upload University Result",
-      desc: "Submit academic results using SafeHire ID — auto-linked to the student's profile.",
+      desc: "Submit academic results auto-linked to the student's profile.",
       href: "/dashboard/organisation/university-results",
-      active: true,
     },
   ]
 
   return (
-    <div className="grid gap-8">
-      {/* Welcome */}
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{displayName}</h1>
-          {profile?.aadhaar_verified && (
-            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
-              <ShieldCheck className="h-3.5 w-3.5" /> Verified
-            </span>
-          )}
+    <div className="grid gap-6">
+      {/* ── Identity card ── */}
+      <div className="bg-[#18181B] text-white rounded-2xl p-7 flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold">{displayName}</h1>
+            {profile?.aadhaar_verified && (
+              <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/15 border border-emerald-400/30 rounded-full px-3 py-1 font-semibold">
+                <ShieldCheck className="h-3.5 w-3.5" /> Verified
+              </span>
+            )}
+          </div>
+          <p className="text-white/50 mt-2 text-sm">
+            Safe Hire ID:{" "}
+            <span className="font-mono font-semibold text-white">{profile?.safe_hire_id || "Generating…"}</span>
+          </p>
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Safe Hire ID: <span className="font-mono font-semibold text-primary">{profile?.safe_hire_id || "Generating…"}</span>
-        </p>
+        <div className="shrink-0 h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center">
+          <Building2 className="h-7 w-7 text-white/70" />
+        </div>
       </div>
 
-      {/* Action Cards */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {actions.map((a) => (
-          <Link
-            key={a.title}
-            href={a.href}
-            className={`group rounded-2xl border p-5 flex flex-col gap-3 transition-all ${
-              a.active
-                ? "border-border bg-card hover:border-primary/30 hover:shadow-md cursor-pointer"
-                : "border-dashed border-border bg-card/50 cursor-not-allowed opacity-60"
-            }`}
-          >
-            <div className="h-11 w-11 rounded-xl bg-secondary/70 flex items-center justify-center group-hover:scale-105 transition-transform">
-              {a.icon}
-            </div>
-            <div>
-              <div className="font-semibold flex items-center gap-2">
-                {a.title}
-                {a.active ? (
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                ) : (
-                  <span className="text-[10px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground">Coming Soon</span>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">{a.desc}</p>
-            </div>
-          </Link>
-        ))}
+      {/* ── Action Cards ── */}
+      <div>
+        <h2 className="text-base font-bold text-[#18181B] mb-4">Organisation Actions</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {actions.map((a, i) => {
+            const pastel = PASTEL_CYCLE[i % PASTEL_CYCLE.length]
+            return (
+              <Link
+                key={a.title}
+                href={a.href}
+                className={`group ${pastel.bg} rounded-2xl p-5 card-hover flex flex-col gap-4`}
+              >
+                <div className={`h-11 w-11 rounded-xl ${pastel.iconBg} ${pastel.iconColor} flex items-center justify-center`}>
+                  {a.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-sm text-[#18181B] flex items-center gap-2">
+                    {a.title}
+                    <ExternalLink className="h-3 w-3 text-[#A1A1AA]" />
+                  </div>
+                  <p className="text-xs text-[#71717A] mt-1">{a.desc}</p>
+                </div>
+                <div className="flex items-center text-[#18181B] text-xs font-semibold gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Open <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Recent Events */}
+      {/* ── Recent Events ── */}
       {events && events.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Recent Events</h2>
-          <div className="grid gap-3">
+          <h2 className="text-base font-bold text-[#18181B] mb-4">Recent Events</h2>
+          <div className="bg-white rounded-2xl border border-[#E4E4E7] divide-y divide-[#F4F4F6] overflow-hidden">
             {events.map((ev: any) => (
-              <div key={ev.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3.5">
+              <div key={ev.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#F9F9FB] transition-colors">
                 <div>
-                  <p className="font-medium text-sm">{ev.title}</p>
-                  <p className="text-xs text-muted-foreground">{ev.achievement} · {new Date(ev.created_at).toLocaleDateString("en-IN")}</p>
+                  <p className="font-semibold text-sm text-[#18181B]">{ev.title}</p>
+                  <p className="text-xs text-[#71717A] mt-0.5">
+                    {ev.achievement} · {new Date(ev.created_at).toLocaleDateString("en-IN")}
+                  </p>
                 </div>
-                <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
+                <span className="text-xs text-emerald-700 font-semibold bg-emerald-100 px-3 py-1 rounded-full">
+                  Active
+                </span>
               </div>
             ))}
           </div>

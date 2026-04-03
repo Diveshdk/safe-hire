@@ -1,7 +1,13 @@
 import { getSupabaseServer } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { ShieldCheck, Briefcase, Users, Building2 } from "lucide-react"
+import { ShieldCheck, Briefcase, Users, Building2, ArrowRight } from "lucide-react"
 import Link from "next/link"
+
+const PASTEL_CYCLE = [
+  { bg: "card-pastel-mint", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+  { bg: "card-pastel-sky", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+  { bg: "card-pastel-lavender", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+]
 
 export default async function EmployeeDashboardPage() {
   const supabase = getSupabaseServer()
@@ -21,66 +27,79 @@ export default async function EmployeeDashboardPage() {
 
   const displayName = profile?.aadhaar_full_name || profile?.full_name || "Employee"
 
-  // Fetch quick stats
   const { count: jobCount } = await supabase.from("jobs").select("id", { count: "exact", head: true })
   const { count: appCount } = await supabase.from("applications").select("id", { count: "exact", head: true })
 
   const quickActions = [
     {
-      icon: <ShieldCheck className="h-6 w-6 text-emerald-500" />,
+      icon: <ShieldCheck className="h-5 w-5" />,
       title: "Verify Company",
       desc: "Verify your company using CIN or PAN via Gridlines.",
       href: "/dashboard/employee/verify-company",
     },
     {
-      icon: <Briefcase className="h-6 w-6 text-primary" />,
+      icon: <Briefcase className="h-5 w-5" />,
       title: "Post & Manage Jobs",
-      desc: `${jobCount || 0} jobs posted. Create new jobs or manage existing ones.`,
+      desc: `${jobCount || 0} jobs posted. Create or manage existing ones.`,
       href: "/dashboard/employee/jobs",
     },
     {
-      icon: <Users className="h-6 w-6 text-amber-500" />,
+      icon: <Users className="h-5 w-5" />,
       title: "View Applicants",
-      desc: `${appCount || 0} applications received. Review and manage candidates.`,
+      desc: `${appCount || 0} applications received. Review candidates.`,
       href: "/dashboard/employee/applicants",
     },
   ]
 
   return (
-    <div className="grid gap-8">
-      {/* Welcome */}
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
-          {profile?.aadhaar_verified && (
-            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
-              <ShieldCheck className="h-3.5 w-3.5" /> Aadhaar Verified
-            </span>
-          )}
+    <div className="grid gap-6">
+      {/* ── Identity card ── */}
+      <div className="bg-[#18181B] text-white rounded-2xl p-7 flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold">{displayName}</h1>
+            {profile?.aadhaar_verified && (
+              <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/15 border border-emerald-400/30 rounded-full px-3 py-1 font-semibold">
+                <ShieldCheck className="h-3.5 w-3.5" /> Aadhaar Verified
+              </span>
+            )}
+          </div>
+          <p className="text-white/50 mt-2 text-sm">
+            Employer Dashboard · Safe Hire ID:{" "}
+            <span className="font-mono font-semibold text-white">{profile?.safe_hire_id || "Generating…"}</span>
+          </p>
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Employee Dashboard · Safe Hire ID:{" "}
-          <span className="font-mono font-semibold text-primary">{profile?.safe_hire_id || "Generating…"}</span>
-        </p>
+        <div className="shrink-0 h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center">
+          <Building2 className="h-7 w-7 text-white/70" />
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {quickActions.map((action) => (
-          <Link
-            key={action.title}
-            href={action.href}
-            className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/30 hover:shadow-md transition-all flex flex-col gap-3"
-          >
-            <div className="h-12 w-12 rounded-xl bg-secondary/70 flex items-center justify-center group-hover:scale-105 transition-transform">
-              {action.icon}
-            </div>
-            <div>
-              <p className="font-semibold">{action.title}</p>
-              <p className="text-sm text-muted-foreground mt-1">{action.desc}</p>
-            </div>
-          </Link>
-        ))}
+      {/* ── Quick Actions ── */}
+      <div>
+        <h2 className="text-base font-bold text-[#18181B] mb-4">Quick Actions</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {quickActions.map((action, i) => {
+            const pastel = PASTEL_CYCLE[i % PASTEL_CYCLE.length]
+            return (
+              <Link
+                key={action.title}
+                href={action.href}
+                className={`group ${pastel.bg} rounded-2xl p-6 card-hover flex flex-col gap-4`}
+              >
+                <div className={`h-11 w-11 rounded-xl ${pastel.iconBg} ${pastel.iconColor} flex items-center justify-center`}>
+                  {action.icon}
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-[#18181B]">{action.title}</p>
+                  <p className="text-sm text-[#71717A] mt-1">{action.desc}</p>
+                </div>
+                <div className="flex items-center text-[#18181B] text-xs font-semibold gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Open <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

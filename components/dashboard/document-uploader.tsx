@@ -102,16 +102,16 @@ export function DocumentUploader() {
   return (
     <div className="grid gap-6">
       {/* Upload Form */}
-      <form onSubmit={handleUpload} className="rounded-2xl border border-border bg-card/40 p-6">
-        <h3 className="font-semibold text-base mb-4 flex items-center gap-2">
-          <Upload className="h-4 w-4 text-primary" /> Add Document
+      <form onSubmit={handleUpload} className="rounded-2xl border border-[#E4E4E7] bg-white p-6 shadow-sm">
+        <h3 className="font-bold text-base text-[#18181B] mb-4 flex items-center gap-2">
+          <Upload className="h-4 w-4 text-[#71717A]" /> Add Document
         </h3>
         <div className="grid gap-4">
           <div className="grid gap-1.5">
-            <Label htmlFor="doc-type">Document Type</Label>
+            <Label htmlFor="doc-type" className="text-sm font-medium text-[#18181B]">Document Type</Label>
             <select
               id="doc-type"
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              className="h-11 rounded-xl border border-[#E4E4E7] bg-white px-3 text-sm text-[#18181B] focus:outline-none focus:border-[#18181B] w-full"
               value={docType}
               onChange={(e) => setDocType(e.target.value)}
             >
@@ -122,12 +122,13 @@ export function DocumentUploader() {
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="doc-title">Title</Label>
+            <Label htmlFor="doc-title" className="text-sm font-medium text-[#18181B]">Title</Label>
             <Input
               id="doc-title"
               placeholder="e.g. First Prize - Hackathon 2024"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              className="h-11 rounded-xl border-[#E4E4E7] bg-white focus:border-[#18181B] focus:ring-0 text-[#18181B] placeholder:text-[#A1A1AA]"
             />
           </div>
 
@@ -147,16 +148,16 @@ export function DocumentUploader() {
 
           {/* Upload Mode Toggle */}
           <div className="grid gap-2">
-            <Label>Upload Method</Label>
+            <Label className="text-sm font-medium text-[#18181B]">Upload Method</Label>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setUploadMode("file")}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
+                  "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition-all",
                   uploadMode === "file"
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:bg-secondary/50"
+                    ? "border-[#18181B] bg-[#18181B] text-white"
+                    : "border-[#E4E4E7] text-[#71717A] hover:text-[#18181B] hover:border-[#A1A1AA]"
                 )}
               >
                 <Upload className="h-4 w-4" /> Upload File
@@ -165,10 +166,10 @@ export function DocumentUploader() {
                 type="button"
                 onClick={() => setUploadMode("link")}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
+                  "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition-all",
                   uploadMode === "link"
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:bg-secondary/50"
+                    ? "border-[#18181B] bg-[#18181B] text-white"
+                    : "border-[#E4E4E7] text-[#71717A] hover:text-[#18181B] hover:border-[#A1A1AA]"
                 )}
               >
                 <Link2 className="h-4 w-4" /> Paste Link
@@ -215,15 +216,15 @@ export function DocumentUploader() {
             </div>
           )}
 
-          <Button type="submit" disabled={uploading || !canSubmit} className="w-full">
-            {uploading ? "Saving…" : uploadMode === "file" ? "Upload Document" : "Save Link"}
-          </Button>
+          <button type="submit" disabled={uploading || !canSubmit} className="w-full bg-[#18181B] text-white font-semibold py-3 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+            {uploading ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</> : (uploadMode === "file" ? "Upload Document" : "Save Link")}
+          </button>
         </div>
       </form>
 
       {/* Documents List */}
       <div>
-        <h3 className="font-semibold mb-3">Your Documents ({documents.length})</h3>
+        <h3 className="font-bold text-[#18181B] mb-3">Your Documents ({documents.length})</h3>
         {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
         {!isLoading && documents.length === 0 && (
           <p className="text-sm text-muted-foreground">No documents yet. Upload one above.</p>
@@ -233,7 +234,7 @@ export function DocumentUploader() {
             const st = STATUS_CONFIG[doc.verification_status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
             const desc = doc.ocr_data?.description
             return (
-              <div key={doc.id} className="rounded-xl border border-border bg-card/30 px-4 py-3">
+              <div key={doc.id} className="rounded-xl border border-[#E4E4E7] bg-white px-4 py-3 hover:bg-[#F9F9FB] transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -248,7 +249,7 @@ export function DocumentUploader() {
                     <p className="text-xs text-muted-foreground capitalize">{doc.doc_type.replace("_", " ")} · {new Date(doc.created_at).toLocaleDateString("en-IN")}</p>
                   </div>
                   <div className="ml-3 shrink-0">
-                    <span className={cn("flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full", st.color)}>
+                    <span className={cn("flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full", st.color)}>
                       {st.icon} {st.label}
                     </span>
                   </div>
