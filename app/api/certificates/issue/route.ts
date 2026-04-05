@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { event_id, recipients, org_name } = body
+    const { event_id, recipients, org_name, design_config } = body
 
     if (!event_id || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json(
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     }
 
     const issuerName = profile.full_name || profile.aadhaar_full_name || "Organisation"
-    const orgName = org_name || issuerName
+    const finalOrgName = org_name || design_config?.organization_name || issuerName
 
     // Use admin client for inserts (bypasses RLS since we already verified auth)
     const adminDb = getSupabaseAdmin()
@@ -58,7 +58,8 @@ export async function POST(req: Request) {
     const errors = []
 
     for (const recipient of recipients) {
-      const { safe_hire_id, certificate_type, custom_title } = recipient
+      // recipient can now optionally include custom fields for bulk variation
+      const { safe_hire_id, certificate_type, custom_title, recipient_name, recipient_rank } = recipient
 
       if (!safe_hire_id || !certificate_type) {
         errors.push({ safe_hire_id, error: "Missing required fields" })
@@ -89,7 +90,10 @@ export async function POST(req: Request) {
       // Prepare certificate title
       const certificateTitle =
         custom_title ||
+        design_config?.title ||
         `${certificate_type === "winner" ? "Winner" : "Participation"} Certificate - ${event.title}`
+
+      const finalRecipientName = recipient_name || recipientProfile.full_name || recipientProfile.aadhaar_full_name || "Recipient"
 
       // Insert certificate using admin client
       const { data: certificate, error: certError } = await adminDb
@@ -103,13 +107,21 @@ export async function POST(req: Request) {
           description: event.achievement || event.title,
           issued_by_user_id: user.id,
           issued_by_name: issuerName,
-          issued_by_org_name: orgName,
+          issued_by_org_name: finalOrgName,
           verification_hash: verificationHash,
           verification_status: "verified",
           metadata: {
             event_title: event.title,
             event_date: event.event_date,
             custom_fields: event.custom_fields,
+            design_config: design_config ? {
+              ...design_config,
+              recipient_name: finalRecipientName, // Inject the specific recipient name
+              recipient_rank: recipient_rank || design_config.recipient_rank,
+              safe_hire_id: safe_hire_id,
+              date: design_config.date || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+              verification_url: `${process.env.NEXT_PUBLIC_APP_URL || ""}/verify/certificate/${verificationHash}`
+            } : null
           },
         })
         .select()

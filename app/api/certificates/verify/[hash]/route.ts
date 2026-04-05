@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
-import { getSupabaseServer } from "@/lib/supabase/server"
+import { getSupabaseAdmin } from "@/lib/supabase/admin"
 
 /**
  * GET /api/certificates/verify/:hash
  * Verify a certificate by its verification hash
  */
 export async function GET(req: Request, { params }: { params: { hash: string } }) {
-  const supabase = getSupabaseServer()
+  const supabase = getSupabaseAdmin()
 
   try {
     const { hash } = params
@@ -26,12 +26,6 @@ export async function GET(req: Request, { params }: { params: { hash: string } }
           achievement,
           event_date,
           event_type
-        ),
-        recipient:recipient_user_id (
-          user_id,
-          full_name,
-          aadhaar_full_name,
-          safe_hire_id
         )
       `
       )
@@ -47,6 +41,19 @@ export async function GET(req: Request, { params }: { params: { hash: string } }
       return NextResponse.json({ ok: false, message: "Certificate not found or has been revoked", verified: false }, { status: 404 })
     }
 
+    let recipientName = "Unknown"
+    if (certificate.recipient_user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, aadhaar_full_name")
+        .eq("user_id", certificate.recipient_user_id)
+        .maybeSingle()
+      
+      if (profile) {
+        recipientName = profile.full_name || profile.aadhaar_full_name || "Unknown"
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       verified: true,
@@ -55,8 +62,7 @@ export async function GET(req: Request, { params }: { params: { hash: string } }
         title: certificate.title,
         description: certificate.description,
         certificate_type: certificate.certificate_type,
-        recipient_name:
-          certificate.recipient?.full_name || certificate.recipient?.aadhaar_full_name || "Unknown",
+        recipient_name: recipientName,
         recipient_safe_hire_id: certificate.recipient_safe_hire_id,
         issued_by: certificate.issued_by_name,
         issued_by_org: certificate.issued_by_org_name,
@@ -64,6 +70,7 @@ export async function GET(req: Request, { params }: { params: { hash: string } }
         event: certificate.events,
         verification_hash: certificate.verification_hash,
         verification_status: certificate.verification_status,
+        metadata: certificate.metadata,
       },
     })
   } catch (error: any) {
