@@ -172,8 +172,15 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
           {/* QR Code & ID */}
           <div className="flex items-center gap-4">
             {verification_url ? (
-              <div className={style.qr}>
-                <QRCodeSVG value={verification_url} size={80} level="H" />
+              <div className={cn(style.qr, "bg-white overflow-hidden")}>
+                <QRCodeSVG 
+                  value={verification_url} 
+                  size={100} 
+                  level="H"
+                  includeMargin={true}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
               </div>
             ) : (
               <div className={cn(style.qr, "w-20 h-20 bg-muted/20 flex items-center justify-center text-[10px] text-center p-2 opacity-50")}>
