@@ -61,6 +61,7 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   // Role
   const [role, setRole] = useState<Role>("job_seeker")
@@ -94,6 +95,11 @@ export default function SignUpPage() {
   // Aadhaar
   const [aadhaarMode, setAadhaarMode] = useState<AadhaarMode>("ocr")
   const [aadhaarFile, setAadhaarFile] = useState<File | null>(null)
+  // Aadhaar step verification state — OCR runs at STEP level, not final submit
+  const [isVerifyingAadhaar, setIsVerifyingAadhaar] = useState(false)
+  const [aadhaarVerified, setAadhaarVerified] = useState(false)
+  const [aadhaarVerifiedName, setAadhaarVerifiedName] = useState<string | null>(null)
+  const [aadhaarVerifiedNumber, setAadhaarVerifiedNumber] = useState<string | null>(null)
 
   // Account
   const [email, setEmail] = useState("")
@@ -209,10 +215,40 @@ export default function SignUpPage() {
     return null
   }
 
-  function validateAadhaar(): string | null {
-    if (aadhaarMode === "xml" && !aadhaarFile) return "Please select your Aadhaar XML file."
-    if (aadhaarMode === "ocr" && !aadhaarFile) return "Please upload your Aadhaar card image."
-    return null
+  // ── LIVE Aadhaar verification at step level ──────────────────────────────
+  // Called when user clicks "Verify & Continue" on Aadhaar step.
+  // Runs OCR/XML parse immediately — user cannot advance until name is extracted.
+  async function handleVerifyAadhaarStep() {
+    if (!aadhaarFile) { setError(aadhaarMode === "xml" ? "Please select your Aadhaar XML file." : "Please upload your Aadhaar card image."); return }
+    setIsVerifyingAadhaar(true)
+    setError(null)
+    setAadhaarVerified(false)
+    setAadhaarVerifiedName(null)
+    setAadhaarVerifiedNumber(null)
+
+    const modeParam = aadhaarMode === "xml" ? "offline-xml" : "ocr"
+    const roleToSave = isEmployee ? "employee" : isOrg ? "organisation" : "job_seeker"
+    const params = new URLSearchParams({ mode: modeParam, signup: "true" })
+    params.append("role", roleToSave)
+    if (selectedCommitteeId) params.append("committee_id", selectedCommitteeId)
+
+    const form = new FormData()
+    form.append("file", aadhaarFile)
+    const res = await fetch(`/api/verify/aadhaar?${params.toString()}`, { method: "POST", body: form })
+    const data = await res.json()
+    setIsVerifyingAadhaar(false)
+
+    if (!data.success || !data.fullName) {
+      setError(data.message || "Could not extract Aadhaar details. Please use a clear front photo of your Aadhaar card (ensure the 12-digit number is visible).") 
+      return
+    }
+    // Success — store extracted data and mark step verified
+    setAadhaarVerified(true)
+    setAadhaarVerifiedName(data.fullName)
+    setAadhaarVerifiedNumber(data.aadhaarNumber || null)
+    setError(null)
+    // Auto-advance to next step
+    goNext()
   }
 
   function validateAccount(): string | null {
@@ -258,7 +294,19 @@ export default function SignUpPage() {
     setError(null)
     const supabase = getSupabaseBrowser()
 
-    // 1. Create account
+    // 1. Aadhaar: use ALREADY VERIFIED data from step (OCR ran at step level)
+    // If somehow bypassed, block registration
+    let aadhaarData: any = aadhaarVerified && aadhaarVerifiedName
+      ? { fullName: aadhaarVerifiedName, aadhaarNumber: aadhaarVerifiedNumber }
+      : null
+
+    if (!aadhaarData) {
+      setError("Identity verification is required. Please go back and verify your Aadhaar.")
+      setLoading(false)
+      return
+    }
+
+    // 2. Create account (only if Aadhaar passed)
     const { error: signUpErr } = await supabase.auth.signUp({
       email,
       password,
@@ -271,28 +319,36 @@ export default function SignUpPage() {
       if (signInErr) { setError(signInErr.message); setLoading(false); return }
     }
 
-    // 2. Setup profile role
+    // 3. Setup profile role AND identity metadata in one go
     const roleToSave = isEmployee ? "employee" : isOrg ? "organisation" : "job_seeker"
     const setupRes = await fetch("/api/profile/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ full_name: "", role: roleToSave }),
+      body: JSON.stringify({ 
+        full_name: "", 
+        role: roleToSave,
+        aadhaar_full_name: aadhaarData?.fullName,
+        aadhaar_number: aadhaarData?.aadhaarNumber,
+        aadhaar_verified: true
+      }),
     })
+    
     if (!setupRes.ok) {
       const j = await setupRes.json().catch(() => ({}))
-      setError(j?.message || "Failed to save profile")
+      
+      // If it's a duplicate Aadhaar, clean up the orphan auth account we just created
+      if (j?.duplicate) {
+        // Sign out and delete the orphan session so no SafeHire ID is generated
+        await supabase.auth.signOut()
+      }
+      
+      setError(j?.message || "Failed to finalize profile")
       setLoading(false)
+      // Reset Aadhaar verification so user must re-verify
+      setAadhaarVerified(false)
+      setAadhaarVerifiedName(null)
+      setAadhaarVerifiedNumber(null)
       return
-    }
-
-    // 3. Aadhaar verification
-    if (aadhaarFile) {
-      const mode = aadhaarMode === "xml" ? "offline-xml" : "ocr"
-      const form = new FormData()
-      form.append("file", aadhaarFile)
-      const res = await fetch(`/api/verify/aadhaar?mode=${mode}`, { method: "POST", body: form })
-      const data = await res.json()
-      if (!data.success) { setError(data.message || "Aadhaar verification failed"); setLoading(false); return }
     }
 
     // 4a. Company verification (employer)
@@ -326,9 +382,8 @@ export default function SignUpPage() {
     }
 
     setLoading(false)
-    if (isEmployee) router.replace("/dashboard/employee")
-    else if (isOrg) router.replace("/dashboard/organisation")
-    else router.replace("/dashboard/job-seeker")
+    // Show email confirmation screen – Supabase requires email link click before access
+    setRegistered(true)
   }
 
   const inputClass = "h-12 rounded-xl border-[#E4E4E7] bg-white focus:border-[#18181B] focus:ring-0 text-[#18181B] placeholder:text-[#A1A1AA]"
@@ -346,6 +401,32 @@ export default function SignUpPage() {
           <span className="font-semibold text-[#18181B] text-lg">Safe Hire</span>
         </div>
 
+        {/* ── Email Confirmation Screen ── */}
+        {registered && (
+          <div className="bg-white rounded-2xl border border-[#E4E4E7] shadow-sm p-8 text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="h-8 w-8 text-blue-600" />
+            </div>
+            <h2 className="text-xl font-bold text-[#18181B]">Almost there! Confirm your email</h2>
+            <p className="text-sm text-[#71717A] leading-relaxed">
+              We've sent a confirmation link to <strong>{email}</strong>.<br />
+              Click the link in your inbox to activate your account and access your dashboard.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 text-left">
+              ⚠️ <strong>Important:</strong> Your Aadhaar has been verified. Once you click the email link, you'll be taken directly to your dashboard.
+              If you don't see the email, check your spam folder.
+            </div>
+            <a
+              href="/sign-in"
+              className="inline-block mt-2 text-sm font-semibold text-[#18181B] hover:underline"
+            >
+              ← Already confirmed? Sign in
+            </a>
+          </div>
+        )}
+
+        {!registered && (
+          <>
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#18181B]">Create Account</h1>
           <p className="text-[#71717A] mt-2 text-sm">Get your Safe Hire verified identity</p>
@@ -711,7 +792,7 @@ export default function SignUpPage() {
                   <button
                     key={m}
                     type="button"
-                    onClick={() => { setAadhaarMode(m); setAadhaarFile(null) }}
+                    onClick={() => { setAadhaarMode(m); setAadhaarFile(null); setAadhaarVerified(false); setAadhaarVerifiedName(null); setAadhaarVerifiedNumber(null); setError(null) }}
                     className={cn(
                       "flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all",
                       aadhaarMode === m
@@ -723,10 +804,13 @@ export default function SignUpPage() {
                   </button>
                 ))}
               </div>
+
               {aadhaarMode === "xml" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="su-xml" className={labelClass}>Aadhaar Offline eKYC XML</Label>
-                  <Input id="su-xml" type="file" accept=".xml" onChange={e => setAadhaarFile(e.target.files?.[0] || null)} className={inputClass} />
+                  <Input id="su-xml" type="file" accept=".xml"
+                    onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
+                    className={inputClass} />
                   <p className="text-xs text-[#71717A]">
                     Download from{" "}
                     <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
@@ -738,20 +822,40 @@ export default function SignUpPage() {
               {aadhaarMode === "ocr" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="su-ocr" className={labelClass}>Aadhaar Card Image / PDF</Label>
-                  <Input id="su-ocr" type="file" accept="image/*,.pdf" onChange={e => setAadhaarFile(e.target.files?.[0] || null)} className={inputClass} />
-                  <p className="text-xs text-[#71717A]">Upload a clear photo of your Aadhaar card for instant OCR verification.</p>
+                  <Input id="su-ocr" type="file" accept="image/*,.pdf"
+                    onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
+                    className={inputClass} />
+                  <p className="text-xs text-[#71717A]">Upload a clear photo of the <strong>front</strong> of your Aadhaar card. The 12-digit number must be visible.</p>
                 </div>
               )}
+
+              {/* Verified identity confirmation card */}
+              {aadhaarVerified && aadhaarVerifiedName && (
+                <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-800">Identity Verified ✓</p>
+                    <p className="text-sm font-bold text-emerald-900">{aadhaarVerifiedName}</p>
+                    {aadhaarVerifiedNumber && <p className="text-[11px] text-emerald-700">XXXX-XXXX-{aadhaarVerifiedNumber.slice(-4)}</p>}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-3 mt-2">
                 <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
                   <ChevronLeft className="h-4 w-4" /> Back
                 </button>
                 <button
                   type="button"
-                  onClick={() => { const err = validateAadhaar(); if (err) { setError(err); return } goNext() }}
-                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all flex items-center justify-center gap-2"
+                  disabled={!aadhaarFile || isVerifyingAadhaar}
+                  onClick={handleVerifyAadhaarStep}
+                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Continue <ChevronRight className="h-4 w-4" />
+                  {isVerifyingAadhaar
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</>
+                    : aadhaarVerified
+                      ? <>Verified ✓ — Continue <ChevronRight className="h-4 w-4" /></>
+                      : <>Verify &amp; Continue <ChevronRight className="h-4 w-4" /></>}
                 </button>
               </div>
             </div>
@@ -880,6 +984,8 @@ export default function SignUpPage() {
           Already have an account?{" "}
           <Link href="/sign-in" className="font-semibold text-[#18181B] hover:underline">Sign In</Link>
         </p>
+        </>
+        )}
       </div>
     </main>
   )

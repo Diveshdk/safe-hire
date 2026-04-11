@@ -12,9 +12,22 @@ export function getSupabaseServer() {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
         } catch {
-          // setAll called from a Server Component — ignore (middleware keeps session fresh)
+          // ignore
         }
       },
     },
   })
+}
+
+export function getSupabaseAdmin() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return [] },
+        setAll() { }
+      }
+    }
+  )
 }

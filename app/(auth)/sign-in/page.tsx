@@ -186,8 +186,8 @@ export default function SignInPage() {
               ) : "Sign In"}
             </button>
 
-            <div className="text-center">
-              <Link href="#" className="text-sm text-[#71717A] hover:text-[#18181B] transition-colors">
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-sm text-[#71717A] hover:text-[#18181B] transition-colors">
                 Forgot your password?
               </Link>
             </div>

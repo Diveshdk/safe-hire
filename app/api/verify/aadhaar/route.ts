@@ -1,200 +1,164 @@
 import { NextResponse } from "next/server"
-import { getSupabaseServer } from "@/lib/supabase/server"
+import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabase/server"
 import {
   apisetuInitiateOtp,
   apisetuConfirmOtp,
   demoVerify,
-  verifyOfflineXml,
   verifyAadhaarOCR,
+  verifyOfflineXml,
 } from "@/lib/verification/aadhaar"
 
 export async function POST(req: Request) {
   const supabase = getSupabaseServer()
   const {
-    data: { user },
+    data: { user: currentUser },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
+  const currentUserId = currentUser?.id
 
-  const contentType = req.headers.get("content-type") || ""
-  const isMultipart = contentType.startsWith("multipart/form-data")
   const url = new URL(req.url)
   const modeQuery = url.searchParams.get("mode")
+  const isSignup = url.searchParams.get("signup") === "true"
+  const isMultipart = req.headers.get("content-type")?.includes("multipart/form-data")
 
-  // Offline XML path uses multipart/form-data with ?mode=offline-xml
-  if (modeQuery === "offline-xml" && isMultipart) {
+  // OCR or Offline XML path (Multipart)
+  if (isMultipart) {
     try {
       const form = await (req as any).formData()
       const file = form.get("file") as File | null
-      // shareCode can be supplied for future zip decryption, but for now we require extracted XML upload
-      // const shareCode = form.get("shareCode") as string | null
-
       if (!file) {
         return NextResponse.json({ success: false, message: "Missing file" }, { status: 400 })
       }
 
-      if (!file.name.toLowerCase().endsWith(".xml")) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Please upload the extracted Aadhaar XML file (not the password-protected ZIP).",
-          },
-          { status: 400 },
-        )
-      }
-
-      const xml = await file.text()
-      const res = await verifyOfflineXml(xml)
-      if (!res.success || !res.fullName) return NextResponse.json(res, { status: 400 })
-
-      const { error: upsertError } = await supabase
-        .from("profiles")
-        .upsert(
-          { user_id: user.id, aadhaar_full_name: res.fullName, aadhaar_verified: true },
-          { onConflict: "user_id" },
-        )
-      if (upsertError) return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 })
-
-      await supabase.from("verifications").insert({
-        subject_user_id: user.id,
-        type: "aadhaar",
-        provider: "uidai_offline",
-        status: "success",
-        evidence_ref: null,
-      })
-
-      return NextResponse.json({ success: true, fullName: res.fullName })
-    } catch (e: any) {
-      return NextResponse.json({ success: false, message: e?.message || "Upload/verification error" }, { status: 500 })
-    }
-  }
-
-  // OCR path uses multipart/form-data with ?mode=ocr
-  if (modeQuery === "ocr" && isMultipart) {
-    try {
-      const form = await (req as any).formData()
-      const file = form.get("file") as File | null
-
-      if (!file) {
-        return NextResponse.json({ success: false, message: "Missing image file" }, { status: 400 })
-      }
-
       const buffer = Buffer.from(await file.arrayBuffer())
-      const res = await verifyAadhaarOCR(buffer, file.name)
+      let res: any
+
+      if (modeQuery === "offline-xml") {
+        res = await verifyOfflineXml(buffer.toString())
+        // XML might not have the cleartext number, but we need a placeholder or skip check
+        if (res.success && !res.aadhaarNumber) res.aadhaarNumber = "XML_VERIFIED"
+      } else {
+        res = await verifyAadhaarOCR(buffer, file.name)
+      }
+
       if (!res.success || !res.fullName || !res.aadhaarNumber) {
         return NextResponse.json(res, { status: 400 })
       }
 
-      // Check if this Aadhaar number is already used by another user
-      const { data: existingProfile, error: checkError } = await supabase
+      // ── DUPLICATE CHECK (ADMIN) ───────────────────────────────────────────
+      // Normalize: remove spaces, dashes, etc.
+      const normalizedAadhaar = res.aadhaarNumber.replace(/\D/g, "")
+      
+      const supabaseAdmin = getSupabaseAdmin()
+      const role = url.searchParams.get("role")
+      const committeeId = url.searchParams.get("committee_id")
+
+      const { data: matches, error: checkError } = await supabaseAdmin
         .from("profiles")
-        .select("user_id")
-        .eq("aadhaar_number", res.aadhaarNumber)
-        .maybeSingle()
+        .select("user_id, role, committee_id")
+        .eq("aadhaar_number", normalizedAadhaar)
+      
+      if (checkError) return NextResponse.json({ success: false, message: checkError.message }, { status: 500 })
 
-      if (checkError) {
-        return NextResponse.json({ success: false, message: checkError.message }, { status: 500 })
+      // Logic: 
+      // 1. Job Seeker: One account per Aadhaar globally.
+      // 2. Organisation: Allowed multiple roles, but only once per specific committee.
+      const hasJobSeeker = matches?.some((m: any) => m.role === "job_seeker" && m.user_id !== currentUserId)
+      const inSameCommittee = committeeId && matches?.some((m: any) => m.committee_id === committeeId && m.user_id !== currentUserId)
+
+      if (role === "job_seeker" && hasJobSeeker) {
+        return NextResponse.json({ success: false, message: "This Aadhaar is already registered with a Job Seeker account." }, { status: 409 })
+      }
+      if (inSameCommittee) {
+        return NextResponse.json({ success: false, message: "You have already registered for this committee with this Aadhaar." }, { status: 409 })
       }
 
-      if (existingProfile && existingProfile.user_id !== user.id) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "This Aadhaar card is already registered with another account.",
-          },
-          { status: 400 },
-        )
+      // If signup mode, return extracted data immediately (frontend will pass to profile/setup)
+      if (isSignup) {
+        return NextResponse.json({
+          success: true,
+          fullName: res.fullName,
+          aadhaarNumber: normalizedAadhaar,
+        })
       }
 
-      // Upsert profile with Aadhaar data
-      const { error: upsertError } = await supabase.from("profiles").upsert(
+      if (!currentUserId) return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
+
+      // Final save for logged-in users (verification page flow)
+      const { error: upsertError } = await supabaseAdmin.from("profiles").upsert(
         {
-          user_id: user.id,
+          user_id: currentUserId,
           aadhaar_full_name: res.fullName,
-          aadhaar_number: res.aadhaarNumber,
+          aadhaar_number: normalizedAadhaar,
           aadhaar_verified: true,
           aadhaar_verified_at: new Date().toISOString(),
         },
-        { onConflict: "user_id" },
+        { onConflict: "user_id" }
       )
 
       if (upsertError) return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 })
 
-      // Log verification
       await supabase.from("verifications").insert({
-        subject_user_id: user.id,
+        subject_user_id: currentUserId,
         type: "aadhaar",
-        provider: "ocr",
+        provider: modeQuery === "offline-xml" ? "xml" : "ocr",
         status: "success",
-        evidence_ref: res.aadhaarNumber.substring(8), // Store last 4 digits as reference
+        evidence_ref: normalizedAadhaar.substring(8),
       })
 
       return NextResponse.json({
         success: true,
         fullName: res.fullName,
-        aadhaarNumber: `XXXX-XXXX-${res.aadhaarNumber.substring(8)}`,
+        aadhaarNumber: `XXXX-XXXX-${normalizedAadhaar.substring(8)}`,
       })
     } catch (e: any) {
-      return NextResponse.json({ success: false, message: e?.message || "OCR verification error" }, { status: 500 })
+      return NextResponse.json({ success: false, message: e?.message || "Verification error" }, { status: 500 })
     }
   }
 
+  // JSON path (API Setu / Demo)
   const body = await req.json().catch(() => ({}))
   const mode = body.mode || process.env.NEXT_PUBLIC_DEFAULT_AADHAAR_MODE || "apisetu"
-  const step = body.step // "init" | "confirm" (for API Setu) or undefined for demo
+  const step = body.step 
 
   try {
     if (mode === "apisetu") {
       if (step === "init") {
-        // DO NOT store UID. Just forward to provider.
         const res = await apisetuInitiateOtp({ uid: body.uid })
-        if (!res.success) return NextResponse.json(res, { status: 400 })
-        return NextResponse.json({ success: true, txnId: res.txnId })
+        return NextResponse.json(res, res.success ? { status: 200 } : { status: 400 })
       }
       if (step === "confirm") {
         const res = await apisetuConfirmOtp({ txnId: body.txnId, otp: body.otp })
         if (!res.success || !res.fullName) return NextResponse.json(res, { status: 400 })
+        
+        // APISetu currently doesn't provide the UID in confirmation result. 
+        // If it did, we would add the duplicate check here too.
 
-        // Upsert profile with Aadhaar full name and verified flag
-        const { error: upsertError } = await supabase
-          .from("profiles")
-          .upsert(
-            { user_id: user.id, aadhaar_full_name: res.fullName, aadhaar_verified: true },
-            { onConflict: "user_id" },
-          )
-        if (upsertError) return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 })
+        if (isSignup) return NextResponse.json({ success: true, fullName: res.fullName })
+        if (!currentUserId) return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
 
-        await supabase.from("verifications").insert({
-          subject_user_id: user.id,
-          type: "aadhaar",
-          provider: "apisetu",
-          status: "success",
-          evidence_ref: null,
-        })
-
+        await supabase.from("profiles").upsert(
+          { user_id: currentUserId, aadhaar_full_name: res.fullName, aadhaar_verified: true, aadhaar_verified_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        )
         return NextResponse.json({ success: true, fullName: res.fullName })
       }
-      return NextResponse.json({ success: false, message: "Missing or invalid step" }, { status: 400 })
     }
 
-    // Demo mode (single step)
-    const res = await demoVerify({ fullName: body.fullName })
-    if (!res.success || !res.fullName) return NextResponse.json(res, { status: 400 })
+    if (mode === "demo") {
+      const res = await demoVerify({ fullName: body.fullName })
+      if (!res.success || !res.fullName) return NextResponse.json(res, { status: 400 })
+      if (isSignup) return NextResponse.json({ success: true, fullName: res.fullName })
+      if (!currentUserId) return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
 
-    const { error: upsertError } = await supabase
-      .from("profiles")
-      .upsert({ user_id: user.id, aadhaar_full_name: res.fullName, aadhaar_verified: true }, { onConflict: "user_id" })
-    if (upsertError) return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 })
+      await supabase.from("profiles").upsert(
+        { user_id: currentUserId, aadhaar_full_name: res.fullName, aadhaar_verified: true, aadhaar_verified_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      )
+      return NextResponse.json({ success: true, fullName: res.fullName })
+    }
 
-    await supabase.from("verifications").insert({
-      subject_user_id: user.id,
-      type: "aadhaar",
-      provider: "demo",
-      status: "success",
-      evidence_ref: null,
-    })
-
-    return NextResponse.json({ success: true, fullName: res.fullName })
+    return NextResponse.json({ success: false, message: "Invalid mode" }, { status: 400 })
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e?.message || "Unexpected error" }, { status: 500 })
+    return NextResponse.json({ success: false, message: e?.message || "API error" }, { status: 500 })
   }
 }
