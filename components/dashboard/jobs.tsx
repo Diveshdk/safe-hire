@@ -29,16 +29,6 @@ export function JobsSection() {
   const jobs = data?.jobs || []
   const { toast } = useToast()
 
-  async function seed() {
-    const r = await fetch("/api/jobs/seed-demo", { method: "POST" })
-    const j = await r.json()
-    if (j?.ok) {
-      toast({ title: "Demo jobs added" })
-      mutate()
-    } else {
-      toast({ title: "Seeding failed", description: j?.message || "Try again", variant: "destructive" })
-    }
-  }
 
   return (
     <div className="grid gap-6">
@@ -48,12 +38,6 @@ export function JobsSection() {
           <p className="text-sm text-[#71717A] mt-0.5">{jobs.length} active posting{jobs.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={seed}
-            className="text-sm border border-[#E4E4E7] text-[#52525B] font-medium px-4 py-2 rounded-full hover:bg-[#F4F4F6] transition-all"
-          >
-            Add Demo Jobs
-          </button>
           <JobFormDialog onCreated={mutate} />
         </div>
       </div>

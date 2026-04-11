@@ -9,13 +9,13 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Briefcase, User, Building2, ChevronRight, ChevronLeft,
-  CheckCircle2, Upload, FlaskConical, Eye, EyeOff,
-  AlertCircle, Loader2, ScanText, ShieldCheck,
+  CheckCircle2, Upload, Eye, EyeOff,
+  AlertCircle, Loader2, ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Role = "job_seeker" | "employee" | "organisation"
-type AadhaarMode = "xml" | "demo" | "ocr"
+type AadhaarMode = "xml" | "ocr"
 
 const ROLE_CONFIG = [
   {
@@ -64,14 +64,12 @@ export default function SignUpPage() {
   // CIN lookup (happens BEFORE account creation)
   const [orgId, setOrgId] = useState("")
   const [orgName, setOrgName] = useState("")
-  const [companyDemo, setCompanyDemo] = useState(false)
   const [isFetchingCin, setIsFetchingCin] = useState(false)
   const cinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Aadhaar
   const [aadhaarMode, setAadhaarMode] = useState<AadhaarMode>("ocr")
   const [aadhaarFile, setAadhaarFile] = useState<File | null>(null)
-  const [demoName, setDemoName] = useState("")
 
   // Account
   const [email, setEmail] = useState("")
@@ -94,7 +92,7 @@ export default function SignUpPage() {
 
   // ── CIN Auto-Lookup (debounced, no DB write via GET) ──────────────────────
   useEffect(() => {
-    if (companyDemo || orgId.length < 10) {
+    if (orgId.length < 10) {
       setOrgName("")
       return
     }
@@ -117,16 +115,12 @@ export default function SignUpPage() {
       }
       setIsFetchingCin(false)
     }, 600)
-  }, [orgId, companyDemo])
+  }, [orgId])
 
   // ── Validation ────────────────────────────────────────────────────────────
   function validateCin() {
     if (isOrg) {
       if (!orgName.trim()) return "Please enter the institution name."
-      return null
-    }
-    if (companyDemo) {
-      if (!orgName.trim()) return "Please enter a company name."
       return null
     }
     if (!orgName) return "Please enter a valid CIN / PAN so the company name can be verified."
@@ -135,7 +129,6 @@ export default function SignUpPage() {
 
   function validateAadhaar() {
     if (aadhaarMode === "xml" && !aadhaarFile) return "Please select your Aadhaar XML file."
-    if (aadhaarMode === "demo" && demoName.trim().length < 3) return "Enter your full name for demo verification."
     if (aadhaarMode === "ocr" && !aadhaarFile) return "Please upload your Aadhaar card image."
     return null
   }
@@ -236,25 +229,17 @@ export default function SignUpPage() {
       const res = await fetch(`/api/verify/aadhaar?mode=${mode}`, { method: "POST", body: form })
       const data = await res.json()
       if (!data.success) { setError(data.message || "Aadhaar verification failed"); setLoading(false); return }
-    } else if (!isOrg && aadhaarMode === "demo" && demoName.trim()) {
-      const res = await fetch("/api/verify/aadhaar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "demo", fullName: demoName.trim() }),
-      })
-      const data = await res.json()
-      if (!data.success) { setError(data.message || "Demo verification failed"); setLoading(false); return }
     }
 
     // 4. Company verification (now user is authenticated)
     if ((isEmployee || isOrg) && orgName) {
+
       const vRes = await fetch("/api/company/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           registrationNumber: orgId.trim() || undefined,
           name: orgName.trim(),
-          demo: companyDemo,
         }),
       })
       const vData = await vRes.json()
@@ -369,96 +354,47 @@ export default function SignUpPage() {
             <div className="space-y-5">
               {!isOrg ? (
                 <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-[#18181B]">Enter Company Registration Number</p>
-                      <p className="text-xs text-[#71717A] mt-0.5">CIN or PAN — we'll fetch the official name.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setCompanyDemo(v => !v); setOrgName(""); setOrgId(""); }}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all",
-                        companyDemo
-                          ? "border-[#18181B] bg-[#18181B] text-white"
-                          : "border-[#E4E4E7] text-[#71717A] hover:border-[#A1A1AA]"
-                      )}
-                    >
-                      <FlaskConical className="h-3.5 w-3.5" />
-                      {companyDemo ? "Demo On" : "Demo"}
-                    </button>
+                  <div>
+                    <p className="text-sm font-semibold text-[#18181B]">Enter Company Registration Number</p>
+                    <p className="text-xs text-[#71717A] mt-0.5">CIN or PAN — we'll fetch the official name.</p>
                   </div>
 
-                  {!companyDemo ? (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="su-cin" className={labelClass}>CIN / PAN</Label>
-                        <div className="relative">
-                          <Input
-                            id="su-cin"
-                            placeholder="e.g. U72200KA2004PTC035301"
-                            value={orgId}
-                            onChange={(e) => setOrgId(e.target.value.toUpperCase().trim())}
-                            className={cn(inputClass, "uppercase pr-12")}
-                            maxLength={21}
-                          />
-                          {isFetchingCin && (
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                              <Loader2 className="h-4 w-4 animate-spin text-[#18181B]" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <p className="w-full text-[10px] text-[#A1A1AA] font-semibold uppercase tracking-wider">Quick fill:</p>
-                          {[
-                            { cin: "U72200KA2004PTC035301", label: "Google India" },
-                            { cin: "L72200PN1945PLC004656", label: "TCS" },
-                            { cin: "U74140KA1991PTC011936", label: "Infosys" },
-                          ].map((c) => (
-                            <button
-                              key={c.cin}
-                              type="button"
-                              onClick={() => setOrgId(c.cin)}
-                              className="text-[10px] bg-[#F4F4F6] hover:bg-[#E4E4E7] border border-[#E4E4E7] px-2.5 py-1 rounded-full text-[#52525B] transition-colors"
-                            >
-                              {c.label}
-                            </button>
-                          ))}
-                        </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="su-cin" className={labelClass}>CIN / PAN</Label>
+                      <div className="relative">
+                        <Input
+                          id="su-cin"
+                          placeholder="e.g. U72200KA2004PTC035301"
+                          value={orgId}
+                          onChange={(e) => setOrgId(e.target.value.toUpperCase().trim())}
+                          className={cn(inputClass, "uppercase pr-12")}
+                          maxLength={21}
+                        />
+                        {isFetchingCin && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#18181B]" />
+                          </div>
+                        )}
                       </div>
+                    </div>
 
-                      {orgName && (
-                        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 animate-in slide-in-from-top-2 duration-300">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0">
-                              <Building2 className="h-5 w-5" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">✓ Company Verified</p>
-                              <p className="text-sm font-bold text-emerald-900 leading-tight">{orgName}</p>
-                            </div>
+                    {orgName && (
+                      <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 animate-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0">
+                            <Building2 className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">✓ Company Verified</p>
+                            <p className="text-sm font-bold text-emerald-900 leading-tight">{orgName}</p>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 animate-in fade-in duration-300">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="su-demo-name" className={labelClass}>Company Name (Manual)</Label>
-                        <Input
-                          id="su-demo-name"
-                          placeholder="Acme Pvt Ltd"
-                          value={orgName}
-                          onChange={(e) => setOrgName(e.target.value)}
-                          className={inputClass}
-                        />
                       </div>
-                      <div className="bg-blue-50 border border-blue-200 text-blue-700 text-[11px] rounded-xl px-4 py-3">
-                        🧪 Demo mode — business saved without external registry check.
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </>
+
               ) : (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <div className="space-y-1.5">
@@ -501,7 +437,7 @@ export default function SignUpPage() {
               </div>
 
               <div className="flex gap-2 flex-wrap">
-                {(["ocr", "xml", "demo"] as const).map((m) => (
+                {(["ocr", "xml"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -514,8 +450,7 @@ export default function SignUpPage() {
                     )}
                   >
                     {m === "ocr" ? <><Upload className="h-3.5 w-3.5" /> Scan Photo/PDF</>
-                      : m === "xml" ? <><Upload className="h-3.5 w-3.5" /> Offline XML</>
-                      : <><FlaskConical className="h-3.5 w-3.5" /> Demo</>}
+                      : <><Upload className="h-3.5 w-3.5" /> Offline XML</>}
                   </button>
                 ))}
               </div>
@@ -541,19 +476,6 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              {aadhaarMode === "demo" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-demoname" className={labelClass}>Full Name (Demo)</Label>
-                  <Input
-                    id="su-demoname"
-                    placeholder="Priya Sharma"
-                    value={demoName}
-                    onChange={(e) => setDemoName(e.target.value)}
-                    className={inputClass}
-                  />
-                  <p className="text-xs text-[#71717A]">Demo mode skips real Aadhaar — for testing only.</p>
-                </div>
-              )}
 
               <div className="flex gap-3 mt-2">
                 <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
@@ -661,7 +583,7 @@ export default function SignUpPage() {
 
                   <div className="bg-white p-7 rounded-2xl border-2 border-[#18181B] flex flex-col items-center text-center space-y-5 shadow-xl shadow-black/5">
                     <div className="h-14 w-14 rounded-2xl bg-[#18181B] flex items-center justify-center text-white">
-                      {isVerifyingDoc ? <Loader2 className="h-6 w-6 animate-spin" /> : <ScanText className="h-6 w-6" />}
+                      {isVerifyingDoc ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6" />}
                     </div>
                     <div className="space-y-1">
                       <h5 className="font-black uppercase text-[10px] tracking-widest text-[#18181B]">GST / Business Document</h5>

@@ -3,6 +3,8 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import crypto from "crypto"
 
+import { sendCertificateEmail } from "@/lib/email"
+
 /**
  * POST /api/certificates/issue
  * Issue certificates to SafeHire IDs from an event
@@ -83,6 +85,20 @@ export async function POST(req: Request) {
         continue
       }
 
+      // ─── UNIQUE CONSTRAINT CHECK ───
+      // Check if certificate already exists for this event and recipient
+      const { data: existingCert } = await adminDb
+        .from("certificates")
+        .select("id")
+        .eq("event_id", event.id)
+        .eq("recipient_user_id", recipientProfile.user_id)
+        .maybeSingle()
+
+      if (existingCert) {
+        errors.push({ safe_hire_id, error: "Certificate already issued for this event" })
+        continue
+      }
+
       // Generate verification hash
       const verificationData = `${event_id}|${recipientProfile.user_id}|${certificate_type}|${Date.now()}`
       const verificationHash = crypto.createHash("sha256").update(verificationData).digest("hex")
@@ -148,6 +164,22 @@ export async function POST(req: Request) {
           verification_hash: verificationHash,
         },
       })
+
+      // ─── EMAIL NOTIFICATION ───
+      // Fetch recipient email from Auth
+      const { data: authData } = await adminDb.auth.admin.getUserById(recipientProfile.user_id)
+      const recipientEmail = authData?.user?.email
+
+      if (recipientEmail) {
+        await sendCertificateEmail({
+          to: recipientEmail,
+          recipientName: finalRecipientName,
+          eventName: event.title,
+          certificateType: certificate_type === "winner" ? "Winner" : "Participation",
+          orgName: finalOrgName,
+          certificateLink: `${process.env.NEXT_PUBLIC_APP_URL || ""}/verify/certificate/${verificationHash}`
+        })
+      }
 
       issuedCertificates.push({
         safe_hire_id,
