@@ -24,7 +24,7 @@ const REASONS = [
 
 interface ReportButtonProps {
   entityId: string
-  entityType: "event" | "job" | "certificate"
+  entityType: "event" | "job" | "certificate" | "post"
   className?: string
 }
 
