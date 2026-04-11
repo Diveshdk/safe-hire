@@ -123,3 +123,59 @@ export async function sendCertificateEmail({
   }
 }
 
+interface SendReportEmailParams {
+  reporterEmail: string
+  reporterSafeHireId: string
+  entityId: string
+  entityType: string
+  reason: string
+  description: string
+}
+
+export async function sendReportEmail({
+  reporterEmail,
+  reporterSafeHireId,
+  entityId,
+  entityType,
+  reason,
+  description,
+}: SendReportEmailParams) {
+  const adminEmail = process.env.RESEND_FROM_EMAIL || 'certificates@safe-hire.in'
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `SafeHire Reports <${FROM_EMAIL}>`,
+      to: [adminEmail],
+      subject: `🚩 New Report: ${entityType} reported by ${reporterEmail}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="margin:0;padding:0;background:#f4f4f6;font-family:-apple-system,sans-serif;">
+            <div style="max-width:600px;margin:40px auto;padding:0 20px;">
+              <div style="background:#18181b;border-radius:16px 16px 0 0;padding:28px 32px;">
+                <span style="color:white;font-size:18px;font-weight:800;">⚠️ SafeHire — Content Report</span>
+              </div>
+              <div style="background:white;padding:32px;border:1px solid #e4e4e7;border-top:none;">
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr><td style="padding:8px 0;color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;width:40%;">Reporter Email</td><td style="color:#18181b;font-size:14px;">${reporterEmail}</td></tr>
+                  <tr><td style="padding:8px 0;color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;">SafeHire ID</td><td style="color:#18181b;font-size:14px;font-family:monospace;">${reporterSafeHireId}</td></tr>
+                  <tr><td style="padding:8px 0;color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;">Entity Type</td><td><span style="background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;">${entityType}</span></td></tr>
+                  <tr><td style="padding:8px 0;color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;">Entity ID</td><td style="color:#18181b;font-size:13px;font-family:monospace;">${entityId}</td></tr>
+                  <tr><td style="padding:8px 0;color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;">Reason</td><td style="color:#dc2626;font-size:14px;font-weight:600;">${reason}</td></tr>
+                  <tr><td style="padding:8px 0;color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;vertical-align:top;">Description</td><td style="color:#18181b;font-size:14px;">${description || '—'}</td></tr>
+                </table>
+              </div>
+              <div style="background:#f9f9fb;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
+                <p style="margin:0;color:#a1a1aa;font-size:12px;">© 2026 Safe Hire · safe-hire.in</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `,
+    })
+    if (error) { console.error('[Email] Report email error:', error); return { success: false, error } }
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('[Email] Report email exception:', err?.message)
+    return { success: false, error: err }
+  }
+}

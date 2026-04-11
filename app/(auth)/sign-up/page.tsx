@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation"
 import {
   Briefcase, User, Building2, ChevronRight, ChevronLeft,
   CheckCircle2, Upload, Eye, EyeOff,
-  AlertCircle, Loader2, ShieldCheck,
+  AlertCircle, Loader2, ShieldCheck, Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -41,14 +41,18 @@ const ROLE_CONFIG = [
   },
 ]
 
-// ── Step definitions per role ────────────────────────────────────────────────
-// Employer:      Role → CIN → Aadhaar → Account → [GST Proof if needed]
-// Job Seeker:    Role → Aadhaar → Account
-// Organisation:  Role → CIN → Account
+// Step labels per role
 const getStepLabels = (role: Role) => {
   if (role === "employee") return ["Role", "Company CIN", "Aadhaar", "Account"]
-  if (role === "organisation") return ["Role", "Institute Name", "Aadhaar", "Account"]
+  if (role === "organisation") return ["Role", "Institute", "Committee", "Your Post", "Aadhaar", "Account"]
   return ["Role", "Aadhaar", "Account"]
+}
+
+// Step indices
+function getStepIdx(role: Role) {
+  if (role === "employee") return { cin: 1, institute: -1, committee: -1, mypost: -1, aadhaar: 2, account: 3 }
+  if (role === "organisation") return { cin: -1, institute: 1, committee: 2, mypost: 3, aadhaar: 4, account: 5 }
+  return { cin: -1, institute: -1, committee: -1, mypost: -1, aadhaar: 1, account: 2 }
 }
 
 export default function SignUpPage() {
@@ -61,11 +65,31 @@ export default function SignUpPage() {
   // Role
   const [role, setRole] = useState<Role>("job_seeker")
 
-  // CIN lookup (happens BEFORE account creation)
+  // CIN lookup (employer)
   const [orgId, setOrgId] = useState("")
   const [orgName, setOrgName] = useState("")
   const [isFetchingCin, setIsFetchingCin] = useState(false)
   const cinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Institute (organisation)
+  const [institutes, setInstitutes] = useState<{ id: string; name: string; domain: string }[]>([])
+  const [selectedInstituteId, setSelectedInstituteId] = useState("")
+  const [notListed, setNotListed] = useState(false)
+  const [newInstituteName, setNewInstituteName] = useState("")
+  const [newInstituteEmail, setNewInstituteEmail] = useState("")
+  const [idCardFile, setIdCardFile] = useState<File | null>(null)
+  const [submitingRequest, setSubmitingRequest] = useState(false)
+  const [requestSent, setRequestSent] = useState(false)
+
+  // Committee (organisation)
+  const [committees, setCommittees] = useState<{ id: string; name: string }[]>([])
+  const [fetchingCommittees, setFetchingCommittees] = useState(false)
+  const [selectedCommitteeId, setSelectedCommitteeId] = useState("")
+  const [committeeOther, setCommitteeOther] = useState(false)
+  const [customCommitteeName, setCustomCommitteeName] = useState("")
+
+  // Position
+  const [position, setPosition] = useState("")
 
   // Aadhaar
   const [aadhaarMode, setAadhaarMode] = useState<AadhaarMode>("ocr")
@@ -75,7 +99,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
-  // GST Proof state (shown after account creation if domain doesn't match)
+  // GST Proof state
   const [requiresProof, setRequiresProof] = useState(false)
   const [companyRecordId, setCompanyRecordId] = useState<string | null>(null)
   const [isVerifyingDoc, setIsVerifyingDoc] = useState(false)
@@ -85,17 +109,38 @@ export default function SignUpPage() {
   const isOrg = role === "organisation"
   const isJobSeeker = role === "job_seeker"
   const stepLabels = getStepLabels(role)
+  const stepIdx = getStepIdx(role)
 
   function clearError() { setError(null) }
-  function goNext() { clearError(); setStep((s) => s + 1) }
-  function goBack() { clearError(); setStep((s) => s - 1) }
+  function goNext() { clearError(); setStep(s => s + 1) }
+  function goBack() { clearError(); setStep(s => s - 1) }
 
-  // ── CIN Auto-Lookup (debounced, no DB write via GET) ──────────────────────
+  // Load institutes when org role is selected and step reaches institute step
   useEffect(() => {
-    if (orgId.length < 10) {
-      setOrgName("")
-      return
+    if (isOrg && step === stepIdx.institute) {
+      fetch("/api/institute/list")
+        .then(r => r.json())
+        .then(d => { if (d.ok) setInstitutes(d.institutes || []) })
+        .catch(() => {})
     }
+  }, [isOrg, step, stepIdx.institute])
+
+  // Load committees when institute is selected
+  useEffect(() => {
+    if (!selectedInstituteId || committeeOther) return
+    setFetchingCommittees(true)
+    setCommittees([])
+    setSelectedCommitteeId("")
+    fetch(`/api/institute/committees?institute_id=${selectedInstituteId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setCommittees(d.committees || []) })
+      .catch(() => {})
+      .finally(() => setFetchingCommittees(false))
+  }, [selectedInstituteId, committeeOther])
+
+  // ── CIN Auto-Lookup (employer) ─────────────────────────────────────────────
+  useEffect(() => {
+    if (orgId.length < 10) { setOrgName(""); return }
     if (cinDebounceRef.current) clearTimeout(cinDebounceRef.current)
     cinDebounceRef.current = setTimeout(async () => {
       if (orgId.length !== 21 && orgId.length !== 10) return
@@ -105,84 +150,105 @@ export default function SignUpPage() {
       try {
         const res = await fetch(`/api/company/verify?cin=${encodeURIComponent(orgId)}`)
         const data = await res.json()
-        if (data.ok) {
-          setOrgName(data.name || "")
-        } else {
-          setError(data.message || "Invalid CIN. No company found.")
-        }
-      } catch {
-        setError("Connection error while looking up CIN.")
-      }
+        if (data.ok) setOrgName(data.name || "")
+        else setError(data.message || "Invalid CIN. No company found.")
+      } catch { setError("Connection error while looking up CIN.") }
       setIsFetchingCin(false)
     }, 600)
   }, [orgId])
 
-  // ── Validation ────────────────────────────────────────────────────────────
-  function validateCin() {
-    if (isOrg) {
-      if (!orgName.trim()) return "Please enter the institution name."
-      return null
+  // ── Institute request submission ───────────────────────────────────────────
+  async function handleInstituteRequest() {
+    if (!newInstituteName.trim() || !newInstituteEmail.trim()) {
+      setError("Institute name and official email are required.")
+      return
     }
+    setSubmitingRequest(true)
+    setError(null)
+
+    let id_card_url = ""
+    if (idCardFile) {
+      const fd = new FormData()
+      fd.append("file", idCardFile)
+      const upRes = await fetch("/api/institute/upload-id", { method: "POST", body: fd })
+      const upData = await upRes.json()
+      if (!upData.ok) { setError(upData.message || "Failed to upload ID card"); setSubmitingRequest(false); return }
+      id_card_url = upData.url
+    }
+
+    const res = await fetch("/api/institute/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ institute_name: newInstituteName, email: newInstituteEmail, id_card_url }),
+    })
+    const data = await res.json()
+    setSubmitingRequest(false)
+    if (data.ok) {
+      setRequestSent(true)
+    } else {
+      setError(data.message || "Failed to submit request")
+    }
+  }
+
+  // ── Validation ─────────────────────────────────────────────────────────────
+  function validateInstituteStep(): string | null {
+    if (notListed) return requestSent ? null : "Please submit your institute request first."
+    if (!selectedInstituteId) return "Please select your institute."
+    return null
+  }
+
+  function validateCommitteeStep(): string | null {
+    if (committeeOther && !customCommitteeName.trim()) return "Please enter your committee name."
+    if (!committeeOther && !selectedCommitteeId) return "Please select a committee."
+    return null
+  }
+
+  function validateCin(): string | null {
+    if (isOrg) return validateInstituteStep()
     if (!orgName) return "Please enter a valid CIN / PAN so the company name can be verified."
     return null
   }
 
-  function validateAadhaar() {
+  function validateAadhaar(): string | null {
     if (aadhaarMode === "xml" && !aadhaarFile) return "Please select your Aadhaar XML file."
     if (aadhaarMode === "ocr" && !aadhaarFile) return "Please upload your Aadhaar card image."
     return null
   }
 
-  function validateAccount() {
+  function validateAccount(): string | null {
     if (!email.trim()) return "Please enter your email."
     if (password.length < 6) return "Password must be at least 6 characters."
     return null
   }
 
-  // ── Step index helpers ────────────────────────────────────────────────────
-  // Employer:     0=Role, 1=CIN, 2=Aadhaar, 3=Account
-  // Organisation: 0=Role, 1=CIN, 2=Account
-  // Job Seeker:   0=Role, 1=Aadhaar, 2=Account
-
-  const cinStep     = isJobSeeker ? -1  : 1
-  const aadhaarStep = isJobSeeker ? 1   : 2
-  const accountStep = isJobSeeker ? 2   : 3
-
-  // ── GST Document Verification ─────────────────────────────────────────────
+  // ── GST Document Verification ──────────────────────────────────────────────
   async function handleDocVerify(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !companyRecordId) return
-
-    // Client-side guard
     if (file.size > 5 * 1024 * 1024) { setError("File too large. Max 5MB."); return }
-
     setIsVerifyingDoc(true)
     setError(null)
     const formData = new FormData()
     formData.append("file", file)
     formData.append("companyId", companyRecordId)
-
     try {
       const res = await fetch("/api/company/verify-document", { method: "POST", body: formData })
       const data = await res.json()
       if (data.ok) {
         setIsVerified(true)
-        // Redirect after a short "success" moment so user sees the tick
         setTimeout(() => {
           if (isEmployee) router.replace("/dashboard/employee")
           else if (isOrg) router.replace("/dashboard/organisation")
           else router.replace("/dashboard/job-seeker")
         }, 1500)
       } else {
-        setError(data.message || "Document verification failed. Ensure company name on the bill matches.")
+        setError(data.message || "Document verification failed.")
       }
-    } catch {
-      setError("Internal error during OCR analysis.")
-    }
+    } catch { setError("Internal error during OCR analysis.") }
     setIsVerifyingDoc(false)
   }
 
-  // ── Final submit (runs at Account step) ───────────────────────────────────
+  // ── Final submit ───────────────────────────────────────────────────────────
   async function handleSubmit(e?: React.FormEvent) {
     if (e) e.preventDefault()
     const accountErr = validateAccount()
@@ -192,17 +258,15 @@ export default function SignUpPage() {
     setError(null)
     const supabase = getSupabaseBrowser()
 
-    // 1. Create Supabase account
+    // 1. Create account
     const { error: signUpErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
+        emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
       },
     })
     if (signUpErr) {
-      // Try sign-in if account already exists
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
       if (signInErr) { setError(signInErr.message); setLoading(false); return }
     }
@@ -222,7 +286,7 @@ export default function SignUpPage() {
     }
 
     // 3. Aadhaar verification
-    if (!isOrg && aadhaarFile) {
+    if (aadhaarFile) {
       const mode = aadhaarMode === "xml" ? "offline-xml" : "ocr"
       const form = new FormData()
       form.append("file", aadhaarFile)
@@ -231,27 +295,33 @@ export default function SignUpPage() {
       if (!data.success) { setError(data.message || "Aadhaar verification failed"); setLoading(false); return }
     }
 
-    // 4. Company verification (now user is authenticated)
-    if ((isEmployee || isOrg) && orgName) {
-
+    // 4a. Company verification (employer)
+    if (isEmployee && orgName) {
       const vRes = await fetch("/api/company/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          registrationNumber: orgId.trim() || undefined,
-          name: orgName.trim(),
-        }),
+        body: JSON.stringify({ registrationNumber: orgId.trim() || undefined, name: orgName.trim() }),
       })
       const vData = await vRes.json()
-
       if (!vRes.ok) { setError(vData.message || "Company verification failed"); setLoading(false); return }
-
       if (vData.requiresProof) {
-        // Domain mismatch — show GST proof upload
         setCompanyRecordId(vData.company?.id)
         setRequiresProof(true)
         setLoading(false)
         return
+      }
+    }
+
+    // 4b. Save institute/committee profile (organisation)
+    if (isOrg) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && selectedInstituteId) {
+        await supabase.from("profiles").update({
+          institute_id: selectedInstituteId,
+          committee_id: committeeOther ? null : (selectedCommitteeId || null),
+          committee_name: committeeOther ? customCommitteeName : null,
+          committee_position: position.trim() || null,
+        }).eq("user_id", user.id)
       }
     }
 
@@ -261,9 +331,9 @@ export default function SignUpPage() {
     else router.replace("/dashboard/job-seeker")
   }
 
-  // ── Shared styles ─────────────────────────────────────────────────────────
   const inputClass = "h-12 rounded-xl border-[#E4E4E7] bg-white focus:border-[#18181B] focus:ring-0 text-[#18181B] placeholder:text-[#A1A1AA]"
   const labelClass = "text-sm font-medium text-[#18181B]"
+  const selectClass = "h-12 rounded-xl border border-[#E4E4E7] bg-white px-3 text-sm text-[#18181B] focus:outline-none focus:border-[#18181B] w-full"
 
   return (
     <main className="min-h-dvh bg-background flex items-center justify-center px-4 py-12">
@@ -282,9 +352,9 @@ export default function SignUpPage() {
         </div>
 
         {/* Step indicators */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
           {stepLabels.map((label, i) => (
-            <div key={label} className="flex items-center gap-2">
+            <div key={label + i} className="flex items-center gap-2">
               <div className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-all",
                 i < step ? "bg-[#18181B] text-white" :
@@ -296,7 +366,7 @@ export default function SignUpPage() {
               <span className={cn("hidden sm:block text-xs font-medium", i === step ? "text-[#18181B]" : "text-[#A1A1AA]")}>
                 {label}
               </span>
-              {i < stepLabels.length - 1 && <div className="h-px w-6 bg-[#E4E4E7]" />}
+              {i < stepLabels.length - 1 && <div className="h-px w-4 bg-[#E4E4E7]" />}
             </div>
           ))}
         </div>
@@ -321,9 +391,7 @@ export default function SignUpPage() {
                     onClick={() => setRole(value)}
                     className={cn(
                       "flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all",
-                      role === value
-                        ? `${activeColor} shadow-sm`
-                        : "border-[#E4E4E7] bg-white hover:border-[#A1A1AA]"
+                      role === value ? `${activeColor} shadow-sm` : "border-[#E4E4E7] bg-white hover:border-[#A1A1AA]"
                     )}
                   >
                     <div className={cn(
@@ -339,87 +407,59 @@ export default function SignUpPage() {
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={goNext}
-                className="w-full mt-2 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all flex items-center justify-center gap-2"
-              >
+              <button type="button" onClick={goNext} className="w-full mt-2 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all flex items-center justify-center gap-2">
                 Continue <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           )}
 
-          {/* ── CIN / Institute Name Step (step === cinStep) ── */}
-          {step === cinStep && cinStep > 0 && (
+          {/* ── CIN Step (employer) ── */}
+          {step === stepIdx.cin && stepIdx.cin > 0 && !isOrg && (
             <div className="space-y-5">
-              {!isOrg ? (
-                <>
-                  <div>
-                    <p className="text-sm font-semibold text-[#18181B]">Enter Company Registration Number</p>
-                    <p className="text-xs text-[#71717A] mt-0.5">CIN or PAN — we'll fetch the official name.</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="su-cin" className={labelClass}>CIN / PAN</Label>
-                      <div className="relative">
-                        <Input
-                          id="su-cin"
-                          placeholder="e.g. U72200KA2004PTC035301"
-                          value={orgId}
-                          onChange={(e) => setOrgId(e.target.value.toUpperCase().trim())}
-                          className={cn(inputClass, "uppercase pr-12")}
-                          maxLength={21}
-                        />
-                        {isFetchingCin && (
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                            <Loader2 className="h-4 w-4 animate-spin text-[#18181B]" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {orgName && (
-                      <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0">
-                            <Building2 className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">✓ Company Verified</p>
-                            <p className="text-sm font-bold text-emerald-900 leading-tight">{orgName}</p>
-                          </div>
-                        </div>
+              <div>
+                <p className="text-sm font-semibold text-[#18181B]">Enter Company Registration Number</p>
+                <p className="text-xs text-[#71717A] mt-0.5">CIN or PAN — we'll fetch the official name.</p>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-cin" className={labelClass}>CIN / PAN</Label>
+                  <div className="relative">
+                    <Input
+                      id="su-cin"
+                      placeholder="e.g. U72200KA2004PTC035301"
+                      value={orgId}
+                      onChange={e => setOrgId(e.target.value.toUpperCase().trim())}
+                      className={cn(inputClass, "uppercase pr-12")}
+                      maxLength={21}
+                    />
+                    {isFetchingCin && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-[#18181B]" />
                       </div>
                     )}
                   </div>
-                </>
-
-              ) : (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="su-org-name" className={labelClass}>College / Institution Name</Label>
-                    <Input
-                      id="su-org-name"
-                      placeholder="e.g. Mumbai University"
-                      value={orgName}
-                      onChange={(e) => setOrgName(e.target.value)}
-                      className={inputClass}
-                    />
-                    <p className="text-xs text-[#71717A]">
-                      Enter the full official name of your institution.
-                    </p>
-                  </div>
                 </div>
-              )}
-
+                {orgName && (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">✓ Company Verified</p>
+                        <p className="text-sm font-bold text-emerald-900 leading-tight">{orgName}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
                   <ChevronLeft className="h-4 w-4" /> Back
                 </button>
                 <button
                   type="button"
-                  disabled={isFetchingCin || (!orgName.trim())}
+                  disabled={isFetchingCin || !orgName.trim()}
                   onClick={() => { const err = validateCin(); if (err) { setError(err); return } goNext() }}
                   className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
@@ -429,62 +469,192 @@ export default function SignUpPage() {
             </div>
           )}
 
-          {/* ── Aadhaar Step ── */}
-          {step === aadhaarStep && aadhaarStep > 0 && (
-            <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
-                ⚠️ <strong>{isOrg ? "Representative" : "Aadhaar"} verification is required.</strong> {isOrg ? "As an institution representative, please verify your identity." : "Choose your preferred method."}
+          {/* ── INSTITUTE STEP (org) ── */}
+          {step === stepIdx.institute && isOrg && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div>
+                <p className="text-sm font-semibold text-[#18181B]">Select Your Institute</p>
+                <p className="text-xs text-[#71717A] mt-0.5">Choose from verified institutions or submit yours for review.</p>
               </div>
 
-              <div className="flex gap-2 flex-wrap">
-                {(["ocr", "xml"] as const).map((m) => (
+              {!notListed ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className={labelClass}>Institute</Label>
+                    <select
+                      value={selectedInstituteId}
+                      onChange={e => setSelectedInstituteId(e.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">Select institute…</option>
+                      {institutes.map(inst => (
+                        <option key={inst.id} value={inst.id}>{inst.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedInstituteId && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      Institute selected. Your sign-up email must match the institute domain.
+                    </div>
+                  )}
+
                   <button
-                    key={m}
                     type="button"
-                    onClick={() => { setAadhaarMode(m); setAadhaarFile(null) }}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all",
-                      aadhaarMode === m
-                        ? "border-[#18181B] bg-[#18181B] text-white"
-                        : "border-[#E4E4E7] text-[#71717A] hover:border-[#A1A1AA] hover:text-[#18181B]"
-                    )}
+                    onClick={() => { setNotListed(true); setSelectedInstituteId(""); setError(null) }}
+                    className="text-xs text-[#71717A] hover:text-[#18181B] underline underline-offset-2 transition-colors"
                   >
-                    {m === "ocr" ? <><Upload className="h-3.5 w-3.5" /> Scan Photo/PDF</>
-                      : <><Upload className="h-3.5 w-3.5" /> Offline XML</>}
+                    My institute is not listed
                   </button>
-                ))}
+                </>
+              ) : (
+                /* Not listed form */
+                requestSent ? (
+                  <div className="flex flex-col items-center text-center py-6 space-y-3">
+                    <div className="h-14 w-14 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#18181B]">Request Submitted!</p>
+                      <p className="text-sm text-[#71717A] mt-1">An admin will verify and add your institute. You'll be notified via email.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setNotListed(false); setRequestSent(false); setError(null) }}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      ← Back to institute list
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                      Submit your institute details for admin verification. Once approved, it will appear in the list.
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className={labelClass}>Institute Name</Label>
+                      <Input value={newInstituteName} onChange={e => setNewInstituteName(e.target.value)} placeholder="e.g. Lokmanya Tilak College of Engineering" className={inputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className={labelClass}>Official Institute Email</Label>
+                      <Input type="email" value={newInstituteEmail} onChange={e => setNewInstituteEmail(e.target.value)} placeholder="e.g. you@ltce.in" className={inputClass} />
+                      <p className="text-[11px] text-[#71717A]">Must be an institutional domain (e.g. @ltce.in, @mu.ac.in)</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className={labelClass}>Institute ID Card <span className="text-[#A1A1AA] font-normal">(optional)</span></Label>
+                      <Input type="file" accept="image/*,.pdf" onChange={e => setIdCardFile(e.target.files?.[0] || null)} className={inputClass} />
+                    </div>
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => { setNotListed(false); setError(null) }} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3 rounded-full hover:bg-[#F4F4F6] transition-all text-sm">
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitingRequest}
+                        onClick={handleInstituteRequest}
+                        className="flex-1 bg-[#18181B] text-white font-semibold py-3 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-60 text-sm flex items-center justify-center gap-2"
+                      >
+                        {submitingRequest ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit Request"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedInstituteId && !requestSent}
+                  onClick={() => {
+                    const err = validateInstituteStep()
+                    if (err) { setError(err); return }
+                    if (requestSent) {
+                      // block account creation until approved — just show info
+                      setError("Your institute is pending admin approval. You'll receive an email when approved.")
+                      return
+                    }
+                    goNext()
+                  }}
+                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  Continue <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── COMMITTEE STEP (org) ── */}
+          {step === stepIdx.committee && isOrg && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div>
+                <p className="text-sm font-semibold text-[#18181B]">Select Your Committee</p>
+                <p className="text-xs text-[#71717A] mt-0.5">Choose the committee you belong to at your institute.</p>
               </div>
 
-              {aadhaarMode === "xml" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-xml" className={labelClass}>Aadhaar Offline eKYC XML</Label>
-                  <Input id="su-xml" type="file" accept=".xml" onChange={(e) => setAadhaarFile(e.target.files?.[0] || null)} className={inputClass} />
-                  <p className="text-xs text-[#71717A]">
-                    Download from{" "}
-                    <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                      myaadhaar.uidai.gov.in
-                    </a>{" "}→ extract ZIP → upload .xml
-                  </p>
+              {!committeeOther ? (
+                <div className="space-y-3">
+                  {fetchingCommittees ? (
+                    <div className="flex items-center gap-2 text-sm text-[#71717A] py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading committees…
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className={labelClass}>Committee</Label>
+                        <select
+                          value={selectedCommitteeId}
+                          onChange={e => setSelectedCommitteeId(e.target.value)}
+                          className={selectClass}
+                        >
+                          <option value="">Select committee…</option>
+                          {committees.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setCommitteeOther(true); setSelectedCommitteeId(""); setError(null) }}
+                        className="text-xs text-[#71717A] hover:text-[#18181B] underline underline-offset-2 transition-colors"
+                      >
+                        My committee is not listed / Other
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3 animate-in fade-in duration-300">
+                  <div className="space-y-1.5">
+                    <Label className={labelClass}>Committee Name</Label>
+                    <Input
+                      value={customCommitteeName}
+                      onChange={e => setCustomCommitteeName(e.target.value)}
+                      placeholder="e.g. Technical Committee, NSS, ISTE"
+                      className={inputClass}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setCommitteeOther(false); setCustomCommitteeName(""); setError(null) }}
+                    className="text-xs text-[#71717A] hover:text-[#18181B] underline underline-offset-2 transition-colors"
+                  >
+                    ← Back to committee list
+                  </button>
                 </div>
               )}
 
-              {aadhaarMode === "ocr" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-ocr" className={labelClass}>Aadhaar Card Image / PDF</Label>
-                  <Input id="su-ocr" type="file" accept="image/*,.pdf" onChange={(e) => setAadhaarFile(e.target.files?.[0] || null)} className={inputClass} />
-                  <p className="text-xs text-[#71717A]">Upload a clear photo of your Aadhaar card for instant OCR verification.</p>
-                </div>
-              )}
-
-
-              <div className="flex gap-3 mt-2">
+              <div className="flex gap-3 pt-2">
                 <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
                   <ChevronLeft className="h-4 w-4" /> Back
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    const err = validateAadhaar()
+                    const err = validateCommitteeStep()
                     if (err) { setError(err); return }
                     goNext()
                   }}
@@ -496,8 +666,99 @@ export default function SignUpPage() {
             </div>
           )}
 
+          {/* ── POSITION STEP (org) ── */}
+          {step === stepIdx.mypost && isOrg && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div>
+                <p className="text-sm font-semibold text-[#18181B]">Your Role in the Committee</p>
+                <p className="text-xs text-[#71717A] mt-0.5">Enter your designation or position.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="su-position" className={labelClass}>Position / Designation</Label>
+                <Input
+                  id="su-position"
+                  value={position}
+                  onChange={e => setPosition(e.target.value)}
+                  placeholder="e.g. Secretary, Technical Head, President"
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!position.trim()}
+                  onClick={goNext}
+                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  Continue <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Aadhaar Step ── */}
+          {step === stepIdx.aadhaar && stepIdx.aadhaar > 0 && (
+            <div className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+                ⚠️ <strong>{isOrg ? "Representative" : "Aadhaar"} verification is required.</strong>{" "}
+                {isOrg ? "As a committee representative, please verify your identity." : "Choose your preferred method."}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {(["ocr", "xml"] as const).map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => { setAadhaarMode(m); setAadhaarFile(null) }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all",
+                      aadhaarMode === m
+                        ? "border-[#18181B] bg-[#18181B] text-white"
+                        : "border-[#E4E4E7] text-[#71717A] hover:border-[#A1A1AA] hover:text-[#18181B]"
+                    )}
+                  >
+                    {m === "ocr" ? <><Upload className="h-3.5 w-3.5" /> Scan Photo/PDF</> : <><Upload className="h-3.5 w-3.5" /> Offline XML</>}
+                  </button>
+                ))}
+              </div>
+              {aadhaarMode === "xml" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-xml" className={labelClass}>Aadhaar Offline eKYC XML</Label>
+                  <Input id="su-xml" type="file" accept=".xml" onChange={e => setAadhaarFile(e.target.files?.[0] || null)} className={inputClass} />
+                  <p className="text-xs text-[#71717A]">
+                    Download from{" "}
+                    <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                      myaadhaar.uidai.gov.in
+                    </a>{" "}→ extract ZIP → upload .xml
+                  </p>
+                </div>
+              )}
+              {aadhaarMode === "ocr" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-ocr" className={labelClass}>Aadhaar Card Image / PDF</Label>
+                  <Input id="su-ocr" type="file" accept="image/*,.pdf" onChange={e => setAadhaarFile(e.target.files?.[0] || null)} className={inputClass} />
+                  <p className="text-xs text-[#71717A]">Upload a clear photo of your Aadhaar card for instant OCR verification.</p>
+                </div>
+              )}
+              <div className="flex gap-3 mt-2">
+                <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { const err = validateAadhaar(); if (err) { setError(err); return } goNext() }}
+                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all flex items-center justify-center gap-2"
+                >
+                  Continue <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Account Step ── */}
-          {step === accountStep && !requiresProof && (
+          {step === stepIdx.account && !requiresProof && (
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="su-email" className={labelClass}>Email Address</Label>
@@ -506,15 +767,23 @@ export default function SignUpPage() {
                   type="email"
                   placeholder="your@email.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   autoComplete="email"
                   className={inputClass}
                 />
-                {(isEmployee || isOrg) && (
+                {isEmployee && (
                   <p className="text-[11px] text-[#71717A]">
-                    💡 Using your corporate email (e.g. <code>@{orgName?.split(" ")[0]?.toLowerCase() || "company"}.com</code>) enables instant verification.
+                    💡 Using your corporate email enables instant verification.
                   </p>
                 )}
+                {isOrg && selectedInstituteId && (() => {
+                  const inst = institutes.find(i => i.id === selectedInstituteId)
+                  return inst ? (
+                    <p className="text-[11px] text-[#71717A]">
+                      💡 Use your institute email ending in <code className="bg-[#F4F4F6] px-1 rounded">@{inst.domain}</code> for smooth verification.
+                    </p>
+                  ) : null
+                })()}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="su-password" className={labelClass}>Password</Label>
@@ -524,7 +793,7 @@ export default function SignUpPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Min 6 characters"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={e => setPassword(e.target.value)}
                     autoComplete="new-password"
                     className={cn(inputClass, "pr-12")}
                   />
@@ -555,7 +824,7 @@ export default function SignUpPage() {
             </div>
           )}
 
-          {/* ── GST Proof Step (appears after account creation if domain mismatch) ── */}
+          {/* ── GST Proof Step ── */}
           {requiresProof && (
             <div className="space-y-6 animate-in zoom-in-95 duration-300">
               {isVerified ? (
@@ -580,7 +849,6 @@ export default function SignUpPage() {
                       </p>
                     </div>
                   </div>
-
                   <div className="bg-white p-7 rounded-2xl border-2 border-[#18181B] flex flex-col items-center text-center space-y-5 shadow-xl shadow-black/5">
                     <div className="h-14 w-14 rounded-2xl bg-[#18181B] flex items-center justify-center text-white">
                       {isVerifyingDoc ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6" />}
@@ -591,7 +859,6 @@ export default function SignUpPage() {
                         Upload a GST certificate, tax invoice, or business bill. JPG, PNG, or PDF · Max 5MB.
                       </p>
                     </div>
-
                     <label className={cn(
                       "w-full py-4 rounded-xl border text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all flex items-center justify-center gap-2",
                       isVerifyingDoc
@@ -600,13 +867,7 @@ export default function SignUpPage() {
                     )}>
                       <Upload className="h-4 w-4" />
                       {isVerifyingDoc ? "Analyzing Document…" : "Upload & Verify Identity"}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*,.pdf"
-                        onChange={handleDocVerify}
-                        disabled={isVerifyingDoc}
-                      />
+                      <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleDocVerify} disabled={isVerifyingDoc} />
                     </label>
                   </div>
                 </>

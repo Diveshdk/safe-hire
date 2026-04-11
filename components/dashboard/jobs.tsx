@@ -11,6 +11,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Pencil, Trash2, Plus, MapPin, DollarSign, Briefcase } from "lucide-react"
+import { FollowButton } from "@/components/dashboard/follow-button"
+import { ReportButton } from "@/components/dashboard/report-button"
 
 const fetcher = (url: string, init?: RequestInit) => fetch(url, init).then((r) => r.json())
 
@@ -167,6 +169,12 @@ function JobCard({ job, onUpdate, pastelidx }: { job: any; onUpdate: () => void;
               <MapPin className="h-3 w-3" />{job.location}
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          {job.company_id && (
+            <FollowButton entityId={job.company_id} entityType="company" />
+          )}
+          <ReportButton entityId={job.id} entityType="job" />
         </div>
       </div>
     </div>
