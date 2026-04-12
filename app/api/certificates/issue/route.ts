@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       // Find the user by SafeHire ID
       const { data: recipientProfile, error: recipientError } = await adminDb
         .from("profiles")
-        .select("user_id, full_name, aadhaar_full_name")
+        .select("user_id, full_name, aadhaar_full_name, certificate_name")
         .eq("safe_hire_id", safe_hire_id)
         .maybeSingle()
 
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
         design_config?.title ||
         `${certificate_type === "winner" ? "Winner" : "Participation"} Certificate - ${event.title}`
 
-      const finalRecipientName = recipient_name || recipientProfile.full_name || recipientProfile.aadhaar_full_name || "Recipient"
+      const finalRecipientName = recipient_name || recipientProfile.certificate_name || recipientProfile.full_name || recipientProfile.aadhaar_full_name || "Recipient"
 
       // Insert certificate using admin client
       const { data: certificate, error: certError } = await adminDb

@@ -44,16 +44,16 @@ const ROLE_CONFIG = [
 
 // Step labels per role
 const getStepLabels = (role: Role) => {
-  if (role === "employee") return ["Role", "Company CIN", "Aadhaar", "Account"]
-  if (role === "organisation") return ["Role", "Institute", "Committee", "Your Post", "Aadhaar", "Account"]
-  return ["Role", "Aadhaar", "Account"]
+  if (role === "employee") return ["Role", "Company CIN", "Aadhaar", "Certificate Name", "Account"]
+  if (role === "organisation") return ["Role", "Institute", "Committee", "Your Post", "Aadhaar", "Certificate Name", "Account"]
+  return ["Role", "Aadhaar", "Certificate Name", "Account"]
 }
 
 // Step indices
 function getStepIdx(role: Role) {
-  if (role === "employee") return { cin: 1, institute: -1, committee: -1, mypost: -1, aadhaar: 2, account: 3 }
-  if (role === "organisation") return { cin: -1, institute: 1, committee: 2, mypost: 3, aadhaar: 4, account: 5 }
-  return { cin: -1, institute: -1, committee: -1, mypost: -1, aadhaar: 1, account: 2 }
+  if (role === "employee") return { cin: 1, institute: -1, committee: -1, mypost: -1, aadhaar: 2, certName: 3, account: 4 }
+  if (role === "organisation") return { cin: -1, institute: 1, committee: 2, mypost: 3, aadhaar: 4, certName: 5, account: 6 }
+  return { cin: -1, institute: -1, committee: -1, mypost: -1, aadhaar: 1, certName: 2, account: 3 }
 }
 
 export default function SignUpPage() {
@@ -133,6 +133,7 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
   const [aadhaarVerified, setAadhaarVerified] = useState(false)
   const [aadhaarVerifiedName, setAadhaarVerifiedName] = useState<string | null>(null)
   const [aadhaarVerifiedNumber, setAadhaarVerifiedNumber] = useState<string | null>(null)
+  const [certificateName, setCertificateName] = useState("")
 
   // Account
   const [email, setEmail] = useState("")
@@ -279,6 +280,7 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
     setAadhaarVerified(true)
     setAadhaarVerifiedName(data.fullName)
     setAadhaarVerifiedNumber(data.aadhaarLast4 || data.aadhaarNumber || null)
+    setCertificateName(data.fullName) // Pre-fill certificate name
     setError(null)
     // Auto-advance to next step
     goNext()
@@ -363,7 +365,8 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
         aadhaar_full_name: aadhaarData?.fullName,
         aadhaar_number: aadhaarData?.aadhaarNumber,    // masked display string, used as fallback
         aadhaar_last4: aadhaarData?.aadhaarLast4 || null, // explicit last-4
-        aadhaar_verified: true
+        aadhaar_verified: true,
+        certificate_name: certificateName || aadhaarData?.fullName
       }),
     })
     
@@ -938,6 +941,54 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
                     : aadhaarVerified
                       ? <>Verified ✓ — Continue <ChevronRight className="h-4 w-4" /></>
                       : <>Verify &amp; Continue <ChevronRight className="h-4 w-4" /></>}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Certificate Name Step ── */}
+          {step === stepIdx.certName && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div className="space-y-2">
+                <h2 className="text-sm font-bold text-[#18181B] flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#18181B] text-[10px] text-white font-bold">?</span>
+                  Certificate Display Name
+                </h2>
+                <p className="text-xs text-[#71717A] leading-relaxed">
+                  How should your name appear on official certificates? We've pre-filled this from your identity verification.
+                </p>
+              </div>
+
+              <div className="space-y-1.5 pt-2">
+                <Label htmlFor="cert-name" className={labelClass}>Name on Certificate</Label>
+                <div className="relative">
+                  <Input
+                    id="cert-name"
+                    value={certificateName}
+                    onChange={e => setCertificateName(e.target.value)}
+                    placeholder="Enter your full name as you want it on certificates"
+                    className={inputClass}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <CheckCircle2 className={cn("h-4 w-4 transition-colors", certificateName.trim().length > 2 ? "text-emerald-500" : "text-[#E4E4E7]")} />
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#A1A1AA] italic mt-1">
+                  You can change this anytime from your profile settings.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!certificateName.trim()}
+                  onClick={goNext}
+                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  Continue <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>

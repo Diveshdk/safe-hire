@@ -18,7 +18,8 @@ export async function POST(req: Request) {
     aadhaar_number,
     aadhaar_last4,
     aadhaar_verified,
-    committee_name 
+    committee_name,
+    certificate_name
   } = body as { 
     full_name?: string; 
     role?: string;
@@ -27,10 +28,20 @@ export async function POST(req: Request) {
     aadhaar_last4?: string;    // preferred: explicit last-4 passed from frontend
     aadhaar_verified?: boolean;
     committee_name?: string;
+    certificate_name?: string;
   }
 
-  if (!role || !["job_seeker", "employee", "employer_admin", "organisation"].includes(role)) {
-    return NextResponse.json({ ok: false, message: "Invalid role" }, { status: 400 })
+  // Fetch existing profile to get current role if not provided
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  const finalRole = role || existingProfile?.role
+
+  if (!finalRole || !["job_seeker", "employee", "employer_admin", "organisation"].includes(finalRole)) {
+    return NextResponse.json({ ok: false, message: "Invalid or missing role" }, { status: 400 })
   }
 
   const supabaseAdmin = getSupabaseAdmin()
@@ -92,8 +103,8 @@ export async function POST(req: Request) {
   // ── Build the upsert payload ──────────────────────────────────────────────
   const upsertData: any = { 
     user_id: user.id, 
-    full_name: full_name ?? null, 
-    role 
+    full_name: full_name ?? existingProfile?.full_name ?? null, 
+    role: finalRole 
   }
 
   if (aadhaar_verified && aadhaar_full_name) {
@@ -120,6 +131,10 @@ export async function POST(req: Request) {
     try {
       upsertData.committee_id = slugify(committee_name)
     } catch {/* non-fatal */}
+  }
+
+  if (certificate_name) {
+    upsertData.certificate_name = certificate_name
   }
 
   const { error } = await supabaseAdmin

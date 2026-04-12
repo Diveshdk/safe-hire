@@ -2,6 +2,7 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 import { ShieldCheck, Trash2, ShieldAlert, Lock, Info } from "lucide-react"
 import { redirect } from "next/navigation"
 import { SettingsClient } from "./settings-client"
+import { CertificateNameSettings } from "../../../components/dashboard/CertificateNameSettings"
 
 export default async function SettingsPage() {
   const supabase = getSupabaseServer()
@@ -11,7 +12,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("aadhaar_verified, aadhaar_full_name, safe_hire_id")
+    .select("aadhaar_verified, aadhaar_full_name, safe_hire_id, certificate_name")
     .eq("user_id", user.id)
     .single()
 
@@ -80,6 +81,10 @@ export default async function SettingsPage() {
                 <a href="/dashboard/job-seeker" className="text-xs font-bold text-[#18181B] underline mt-1 inline-block">Verify now to build trust</a>
               </div>
             )}
+          </div>
+
+          <div className="px-6 pb-6 pt-0 border-t border-[#F4F4F6]">
+            <CertificateNameSettings initialName={profile?.certificate_name || profile?.aadhaar_full_name || ""} />
           </div>
         </div>
 

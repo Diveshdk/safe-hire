@@ -35,12 +35,12 @@ async function verifyCertificate(hash: string) {
     if (certificate.recipient_user_id) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, aadhaar_full_name")
+        .select("full_name, aadhaar_full_name, certificate_name")
         .eq("user_id", certificate.recipient_user_id)
         .maybeSingle()
 
       if (profile) {
-        recipientName = profile.full_name || profile.aadhaar_full_name || "Unknown"
+        recipientName = profile.certificate_name || profile.full_name || profile.aadhaar_full_name || "Unknown"
       }
     }
 
