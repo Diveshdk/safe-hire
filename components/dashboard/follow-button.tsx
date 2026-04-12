@@ -12,9 +12,10 @@ interface FollowButtonProps {
   entityId: string
   entityType: "organisation" | "company"
   className?: string
+  hideIfFollowing?: boolean
 }
 
-export function FollowButton({ entityId, entityType, className }: FollowButtonProps) {
+export function FollowButton({ entityId, entityType, className, hideIfFollowing }: FollowButtonProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
 
@@ -48,6 +49,8 @@ export function FollowButton({ entityId, entityType, className }: FollowButtonPr
     }
     setLoading(false)
   }, [loading, entityId, entityType, count, mutate, toast])
+
+  if (following && hideIfFollowing) return null
 
   return (
     <button

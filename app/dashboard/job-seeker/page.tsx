@@ -1,4 +1,4 @@
-import { getSupabaseServer } from "@/lib/supabase/server"
+import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { ShieldCheck, TrendingUp, Briefcase, FileText, Award, GraduationCap, Bot, CreditCard, ArrowRight } from "lucide-react"
 import Link from "next/link"
@@ -60,42 +60,91 @@ export default async function JobSeekerDashboardPage() {
   if (!isFallback && orgIds.length > 0) postsQ = postsQ.in("org_user_id", orgIds)
   const { data: postsRaw } = await postsQ
 
-  // 5. Aggregate Organisation/Profile names
+  // 5. Two-step approach: fetch profiles then institutes separately (most reliable)
   const allOrgUserIds = [
     ...new Set([
-        ...(eventsRaw ?? []).map((e: any) => e.org_user_id),
-        ...(postsRaw ?? []).map((p: any) => p.org_user_id)
-    ])
+      ...(eventsRaw ?? []).map((e: any) => e.org_user_id),
+      ...(postsRaw ?? []).map((p: any) => p.org_user_id),
+    ]),
   ].filter(Boolean)
-  
-  let orgNames: Record<string, string> = {}
+
+  type OrgMeta = { 
+    comm_name: string; 
+    comm_safe_id: string | null;
+    author_name: string | null; 
+    author_position: string | null;
+    auth_safe_id: string | null;
+  }
+  const orgMeta: Record<string, OrgMeta> = {}
+  const adminSupabase = getSupabaseAdmin()
   if (allOrgUserIds.length > 0) {
-    const { data: profilesData } = await supabase
+    const { data: profilesData } = await adminSupabase
       .from("profiles")
-      .select("user_id, aadhaar_full_name, full_name")
+      .select("*, institutes(*)")
       .in("user_id", allOrgUserIds)
-    orgNames = Object.fromEntries(
-      (profilesData ?? []).map((p: any) => [p.user_id, p.aadhaar_full_name || p.full_name || "Organisation"])
-    )
+
+    if (profilesData && profilesData.length > 0) {
+      // Collect unique institute IDs
+      const instituteIds = [...new Set(profilesData.map((p: any) => p.institute_id).filter(Boolean))]
+
+      // Fetch institutes separately — reliable fallback
+      const instituteMap: Record<string, string | any> = {}
+      if (instituteIds.length > 0) {
+        const { data: institutesData } = await adminSupabase
+          .from("institutes")
+          .select("id, name, safe_hire_id") // Maybe institute has safe_hire_id too?
+          .in("id", instituteIds)
+        
+        ;(institutesData ?? []).forEach((inst: any) => {
+          instituteMap[inst.id] = inst
+        })
+      }
+
+      profilesData.forEach((p: any) => {
+        const instData = Array.isArray(p.institutes) ? p.institutes[0] : p.institutes
+        const instituteName = instData?.name || (p.institute_id ? instituteMap[p.institute_id]?.name : null)
+        const instituteSafeId = instData?.safe_hire_id || (p.institute_id ? instituteMap[p.institute_id]?.safe_hire_id : null)
+        
+        const authorName = p.aadhaar_full_name || p.full_name || null
+        const meta = {
+          comm_name: p.committee_name || instituteName || "Organisation",
+          comm_safe_id: p.safe_hire_id || instituteSafeId || null,
+          author_name: authorName,
+          author_position: p.committee_position || null,
+          auth_safe_id: p.safe_hire_id || null,
+        }
+        if (p.user_id) orgMeta[p.user_id] = meta
+        if (p.id) orgMeta[p.id] = meta
+      })
+    }
   }
 
   // 6. Merge initial items
   const events = (eventsRaw ?? []).map((e: any) => ({
     ...e,
     _type: "event" as const,
-    org_name: orgNames[e.org_user_id] || "Organisation",
+    org_name: orgMeta[e.org_user_id]?.comm_name || "Organisation",
+    org_safe_id: orgMeta[e.org_user_id]?.comm_safe_id || null,
+    author_name: orgMeta[e.org_user_id]?.author_name || null,
+    author_position: orgMeta[e.org_user_id]?.author_position || null,
+    auth_safe_id: orgMeta[e.org_user_id]?.auth_safe_id || null,
   }))
 
   const jobs = (jobsRaw ?? []).map((j: any) => ({
     ...j,
     _type: "job" as const,
     org_name: j.companies?.name || "Company",
+    org_safe_id: null,
   }))
 
   const posts = (postsRaw ?? []).map((p: any) => ({
     ...p,
     _type: "post" as const,
-    org_name: orgNames[p.org_user_id] || "Organisation",
+    org_name: orgMeta[p.org_user_id]?.comm_name || "Organisation",
+    org_safe_id: orgMeta[p.org_user_id]?.comm_safe_id || null,
+    author_name: orgMeta[p.org_user_id]?.author_name || null,
+    author_position: orgMeta[p.org_user_id]?.author_position || null,
+    auth_safe_id: orgMeta[p.org_user_id]?.auth_safe_id || null,
   }))
 
   const initialItems = [...events, ...jobs, ...posts]
@@ -113,7 +162,7 @@ export default async function JobSeekerDashboardPage() {
   ]
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* ── Identity Card ── */}
       <div className="bg-[#18181B] text-white rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -160,6 +209,7 @@ export default async function JobSeekerDashboardPage() {
           initialItems={initialItems}
           initialCursor={initialCursor}
           isFallback={isFallback}
+          currentUserId={user.id}
         />
       </div>
     </div>

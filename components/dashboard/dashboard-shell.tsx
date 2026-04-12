@@ -4,8 +4,8 @@ import type React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { SignOutButton } from "@/components/auth/sign-out-button"
 import { SafeHireSearch } from "@/components/dashboard/safehire-search"
+import { getSupabaseBrowser } from "@/lib/supabase/client"
 import {
   LayoutDashboard,
   Briefcase,
@@ -16,13 +16,13 @@ import {
   GraduationCap,
   Bot,
   User,
-  Building2,
-  PlusCircle,
   CalendarDays,
   Menu,
   X,
+  LogOut,
+  ChevronDown,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 
 interface NavItem {
   label: string
@@ -53,31 +53,21 @@ const NAV_MAP: Record<string, NavItem[]> = {
     { label: "Certificates", href: "/dashboard/job-seeker/certificates", icon: <Award className="h-4 w-4" /> },
     { label: "University Results", href: "/dashboard/job-seeker/university", icon: <GraduationCap className="h-4 w-4" /> },
     { label: "AI Resume Review", href: "/dashboard/job-seeker/ai-resume", icon: <Bot className="h-4 w-4" /> },
-    { label: "My Profile", href: "/dashboard/profile", icon: <User className="h-4 w-4" /> },
   ],
   organisation: [
     { label: "Overview", href: "/dashboard/organisation", icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: "Check Company", href: "/dashboard/organisation/verify-company", icon: <ShieldCheck className="h-4 w-4" /> },
-    { label: "Create Event", href: "/dashboard/organisation/events", icon: <PlusCircle className="h-4 w-4" /> },
     { label: "Manage Events", href: "/dashboard/organisation/events", icon: <CalendarDays className="h-4 w-4" /> },
     { label: "University Results", href: "/dashboard/organisation/university-results", icon: <GraduationCap className="h-4 w-4" /> },
     { label: "My Profile", href: "/dashboard/profile", icon: <User className="h-4 w-4" /> },
   ],
 }
 
-const ROLE_LABELS: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
-  employee: { label: "Employer", bg: "bg-amber-100", text: "text-amber-700", icon: <Briefcase className="h-3 w-3" /> },
-  employer_admin: { label: "Employer", bg: "bg-amber-100", text: "text-amber-700", icon: <Briefcase className="h-3 w-3" /> },
-  job_seeker: { label: "Job Seeker", bg: "bg-blue-100", text: "text-blue-700", icon: <User className="h-3 w-3" /> },
-  organisation: { label: "Organisation", bg: "bg-purple-100", text: "text-purple-700", icon: <Building2 className="h-3 w-3" /> },
-}
-
-// Pastel initials avatar colors per role
-const AVATAR_COLORS: Record<string, string> = {
-  employee: "bg-amber-100 text-amber-700",
-  employer_admin: "bg-amber-100 text-amber-700",
-  job_seeker: "bg-blue-100 text-blue-700",
-  organisation: "bg-purple-100 text-purple-700",
+const ROLE_META: Record<string, { label: string; avatarBg: string; avatarText: string }> = {
+  employee:       { label: "Employer",      avatarBg: "bg-amber-100",  avatarText: "text-amber-700" },
+  employer_admin: { label: "Employer",      avatarBg: "bg-amber-100",  avatarText: "text-amber-700" },
+  job_seeker:     { label: "Job Seeker",    avatarBg: "bg-blue-100",   avatarText: "text-blue-700"  },
+  organisation:   { label: "Organisation",  avatarBg: "bg-purple-100", avatarText: "text-purple-700"},
 }
 
 interface DashboardShellProps {
@@ -91,9 +81,12 @@ interface DashboardShellProps {
 export function DashboardShell({ children, role, displayName, safeHireId, aadhaarVerified }: DashboardShellProps) {
   const pathname = usePathname()
   const navItems = NAV_MAP[role] || NAV_MAP.job_seeker
-  const roleMeta = ROLE_LABELS[role] || ROLE_LABELS.job_seeker
-  const avatarColor = AVATAR_COLORS[role] || AVATAR_COLORS.job_seeker
+  const meta = ROLE_META[role] || ROLE_META.job_seeker
+
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
 
   const initials = displayName
     .split(" ")
@@ -102,12 +95,38 @@ export function DashboardShell({ children, role, displayName, safeHireId, aadhaa
     .toUpperCase()
     .slice(0, 2)
 
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  // Close mobile on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    try {
+      const supabase = getSupabaseBrowser()
+      await supabase.auth.signOut()
+    } finally {
+      window.location.href = "/"
+    }
+  }
+
   return (
-    <div className="min-h-dvh bg-[#F4F4F6] flex">
+    <div className="min-h-dvh bg-[#F4F4F6] flex overflow-hidden">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -115,30 +134,28 @@ export function DashboardShell({ children, role, displayName, safeHireId, aadhaa
       {/* ── Sidebar ── */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-[#E4E4E7] flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:z-auto shadow-sm",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 w-[240px] bg-white border-r border-[#E4E4E7] flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:z-auto",
+          mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         )}
       >
         {/* Logo */}
-        <div className="px-5 py-5 flex items-center justify-between border-b border-[#E4E4E7]">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-[#18181B] flex items-center justify-center">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-[#E4E4E7] shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="h-8 w-8 rounded-lg bg-[#18181B] flex items-center justify-center group-hover:scale-105 transition-transform">
               <span className="text-white text-xs font-bold">SH</span>
             </div>
-            <span className="font-bold text-[#18181B]">Safe Hire</span>
+            <span className="font-bold text-[#18181B] text-sm">Safe Hire</span>
           </Link>
-          <button className="lg:hidden p-1.5 rounded-lg hover:bg-[#F4F4F6]" onClick={() => setMobileOpen(false)}>
+          <button
+            className="lg:hidden p-1.5 rounded-lg hover:bg-[#F4F4F6] transition-colors"
+            onClick={() => setMobileOpen(false)}
+          >
             <X className="h-4 w-4 text-[#71717A]" />
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-4 py-3 border-b border-[#F4F4F6]">
-          <SafeHireSearch />
-        </div>
-
-        {/* Nav section label */}
-        <div className="px-4 pt-4 pb-1">
+        {/* Nav label */}
+        <div className="px-4 pt-4 pb-1 shrink-0">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[#A1A1AA]">Navigation</p>
         </div>
 
@@ -153,16 +170,13 @@ export function DashboardShell({ children, role, displayName, safeHireId, aadhaa
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
                     isActive
                       ? "bg-[#18181B] text-white shadow-sm"
                       : "text-[#52525B] hover:bg-[#F4F4F6] hover:text-[#18181B]"
                   )}
                 >
-                  <span className={cn(
-                    "shrink-0 transition-colors",
-                    isActive ? "text-white" : "text-[#A1A1AA]"
-                  )}>
+                  <span className={cn("shrink-0 transition-colors", isActive ? "text-white" : "text-[#A1A1AA]")}>
                     {item.icon}
                   </span>
                   {item.label}
@@ -172,67 +186,115 @@ export function DashboardShell({ children, role, displayName, safeHireId, aadhaa
           </div>
         </nav>
 
-        {/* User card */}
-        <div className="border-t border-[#E4E4E7] px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0 font-semibold text-sm", avatarColor)}>
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold truncate text-[#18181B]">{displayName}</p>
-              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                <span className={cn(
-                  "inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5",
-                  roleMeta.bg, roleMeta.text
-                )}>
-                  {roleMeta.icon} {roleMeta.label}
-                </span>
-                {aadhaarVerified && (
-                  <span className="flex items-center gap-0.5 text-[10px] text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5 font-semibold">
-                    <ShieldCheck className="h-2.5 w-2.5" /> Verified
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {safeHireId && (
-            <div className="mt-2.5 bg-[#F4F4F6] rounded-lg px-3 py-2">
-              <p className="text-[10px] text-[#A1A1AA] mb-0.5">Safe Hire ID</p>
-              <p className="font-mono text-xs font-semibold text-[#18181B]">{safeHireId}</p>
-            </div>
-          )}
-
-          <div className="mt-3">
-            <SignOutButton />
+        {/* Sidebar footer — role badge only (no name/sign out) */}
+        <div className="border-t border-[#E4E4E7] px-4 py-3 shrink-0">
+          <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold", meta.avatarBg, meta.avatarText)}>
+            {meta.label}
+            {aadhaarVerified && (
+              <span className="flex items-center gap-0.5 ml-1 text-emerald-700">
+                <ShieldCheck className="h-3 w-3" /> Verified
+              </span>
+            )}
           </div>
         </div>
       </aside>
 
       {/* ── Main content ── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-[#E4E4E7] px-4 sm:px-6 lg:px-10 h-16 flex items-center gap-4 shadow-sm">
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#E4E4E7] px-4 sm:px-6 h-14 flex items-center gap-3 shadow-sm shrink-0">
+          {/* Mobile hamburger */}
           <button
-            className="lg:hidden p-2.5 rounded-xl bg-[#F4F4F6] hover:bg-[#E4E4E7] transition-all"
+            className="lg:hidden p-2 rounded-xl bg-[#F4F4F6] hover:bg-[#E4E4E7] transition-all shrink-0"
             onClick={() => setMobileOpen(true)}
-            aria-label="Toggle menu"
+            aria-label="Open menu"
           >
             <Menu className="h-5 w-5 text-[#18181B]" />
           </button>
+
+          {/* Logo (mobile only) */}
+          <Link href="/dashboard" className="lg:hidden flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-[#18181B] flex items-center justify-center">
+              <span className="text-white text-[10px] font-bold">SH</span>
+            </div>
+          </Link>
+
           <div className="flex-1" />
-          <div className="hidden sm:block w-72">
+
+          {/* Search */}
+          <div className="hidden sm:block w-64">
             <SafeHireSearch />
           </div>
-          {/* User initials mini */}
-          <div className={cn("h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 shadow-sm", avatarColor)}>
-            {initials}
+
+          {/* ── Profile Dropdown ── */}
+          <div className="relative shrink-0" ref={profileRef}>
+            <button
+              onClick={() => setProfileOpen(prev => !prev)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border-2 transition-all duration-200",
+                profileOpen ? "border-[#18181B] shadow-sm" : "border-transparent hover:border-[#E4E4E7]"
+              )}
+              aria-label="Profile menu"
+            >
+              <div className={cn(
+                "h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shadow-sm select-none",
+                meta.avatarBg, meta.avatarText
+              )}>
+                {initials}
+              </div>
+              <ChevronDown className={cn(
+                "h-3.5 w-3.5 text-[#71717A] mr-1 transition-transform duration-200",
+                profileOpen && "rotate-180"
+              )} />
+            </button>
+
+            {/* Dropdown */}
+            {profileOpen && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-[#E4E4E7] shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                {/* User info header */}
+                <div className="px-4 py-3 border-b border-[#F4F4F6]">
+                  <p className="text-sm font-bold text-[#18181B] truncate">{displayName}</p>
+                  {safeHireId && (
+                    <p className="text-[11px] text-[#A1A1AA] font-mono mt-0.5 truncate">{safeHireId}</p>
+                  )}
+                </div>
+
+                {/* My Profile */}
+                <Link
+                  href="/dashboard/profile"
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-[#18181B] hover:bg-[#F4F4F6] transition-colors font-medium"
+                >
+                  <User className="h-4 w-4 text-[#71717A]" />
+                  My Profile
+                </Link>
+
+                {/* Sign Out */}
+                <button
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium border-t border-[#F4F4F6] disabled:opacity-60"
+                >
+                  {signingOut ? (
+                    <>
+                      <span className="h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                      Signing out…
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="h-4 w-4 shrink-0" />
+                      Sign Out
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
-          <div className="max-w-6xl mx-auto space-y-8">{children}</div>
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="max-w-5xl mx-auto space-y-6">{children}</div>
         </main>
       </div>
     </div>

@@ -163,3 +163,14 @@ select {
   background-position: right 12px center;
   padding-right: 36px !important;
 }
+
+/* ── Animation fill-mode ── */
+.fill-mode-both {
+  animation-fill-mode: both;
+}
+
+/* ── Prevent horizontal overflow ── */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}

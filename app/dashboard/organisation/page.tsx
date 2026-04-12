@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { ShieldCheck, PlusCircle, Trophy, GraduationCap, ExternalLink, Building2, ArrowRight, Sparkles, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import { PostFormDialog } from "@/components/dashboard/post-form-dialog"
+import { DeletePostButton } from "@/components/dashboard/delete-post-button"
 
 const PASTEL_CYCLE = [
   { bg: "card-pastel-lavender", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
@@ -143,8 +144,13 @@ export default async function OrganisationDashboardPage() {
           {posts && posts.length > 0 ? (
             <div className="space-y-4">
               {posts.map((post: any) => (
-                <div key={post.id} className="bg-white rounded-2xl border border-[#E4E4E7] p-4 group hover:border-[#18181B] transition-all">
-                  <p className="text-sm text-[#18181B] line-clamp-2 leading-relaxed">{post.content}</p>
+                <div key={post.id} className="bg-white rounded-2xl border border-[#E4E4E7] p-4 group hover:border-[#18181B] transition-all relative">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <p className="text-sm text-[#18181B] line-clamp-2 leading-relaxed flex-1">{post.content}</p>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DeletePostButton postId={post.id} />
+                    </div>
+                  </div>
                   {post.image_url && (
                     <div className="mt-3 rounded-xl overflow-hidden aspect-[16/9] border border-[#F4F4F6]">
                       <img src={post.image_url} alt="Post content" className="w-full h-full object-cover" />

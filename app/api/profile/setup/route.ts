@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabase/server"
+import { slugify } from "@/lib/utils/slugify"
 
 export async function POST(req: Request) {
   const supabase = getSupabaseServer()
@@ -14,13 +15,15 @@ export async function POST(req: Request) {
     role, 
     aadhaar_full_name, 
     aadhaar_number, 
-    aadhaar_verified 
+    aadhaar_verified,
+    committee_name 
   } = body as { 
     full_name?: string; 
     role?: string;
     aadhaar_full_name?: string;
     aadhaar_number?: string;
     aadhaar_verified?: boolean;
+    committee_name?: string;
   }
 
   if (!role || !["job_seeker", "employee", "employer_admin", "organisation"].includes(role)) {
