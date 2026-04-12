@@ -821,10 +821,13 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
 
           {/* ── Aadhaar Step ── */}
           {step === stepIdx.aadhaar && stepIdx.aadhaar > 0 && (
-            <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
-                ⚠️ <strong>{isOrg ? "Representative" : "Aadhaar"} verification is required.</strong>{" "}
-                {isOrg ? "As a committee representative, please verify your identity." : "Choose your preferred method."}
+            <div className="space-y-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800 flex items-start gap-3">
+                <ShieldCheck className="h-5 w-5 shrink-0 mt-0.5 text-amber-600" />
+                <div className="space-y-1">
+                  <p className="font-bold">{isOrg ? "Representative" : "Aadhaar"} verification is required.</p>
+                  <p className="text-xs opacity-90">{isOrg ? "As a committee representative, please verify your identity to proceed." : "Choose your preferred method for secure identity anchoring."}</p>
+                </div>
               </div>
 
               {/* Enhanced Informed Consent Scrollbox */}
@@ -891,26 +894,46 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
               </div>
 
               {aadhaarMode === "xml" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-xml" className={labelClass}>Aadhaar Offline eKYC XML</Label>
-                  <Input id="su-xml" type="file" accept=".xml"
-                    onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
-                    className={inputClass} />
-                  <p className="text-xs text-[#71717A]">
-                    Download from{" "}
-                    <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                      myaadhaar.uidai.gov.in
-                    </a>{" "}→ extract ZIP → upload .xml
-                  </p>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-xml" className={labelClass}>Aadhaar Offline eKYC XML</Label>
+                    <Input id="su-xml" type="file" accept=".xml"
+                      onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
+                      className={inputClass} />
+                    <p className="text-xs text-[#71717A]">
+                      Download from{" "}
+                      <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                        myaadhaar.uidai.gov.in
+                      </a>{" "}→ extract ZIP → upload .xml
+                    </p>
+                  </div>
                 </div>
               )}
+
               {aadhaarMode === "ocr" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-ocr" className={labelClass}>Aadhaar Card Image / PDF</Label>
-                  <Input id="su-ocr" type="file" accept="image/*,.pdf"
-                    onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
-                    className={inputClass} />
-                  <p className="text-xs text-[#71717A]">Upload a clear photo of the <strong>front</strong> of your Aadhaar card. We only read your <strong>name</strong> and <strong>last 4 digits</strong> — the full 12-digit number is never stored.</p>
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                       <ShieldCheck className="h-4 w-4 text-blue-600" />
+                       <span className="text-[11px] font-black uppercase tracking-widest text-blue-700">Privacy First Verification</span>
+                    </div>
+                    <p className="text-[11px] text-blue-800/80 leading-relaxed font-medium">
+                      Download masked Aadhaar from: <a href="https://myaadhaar.uidai.gov.in/genricDownloadAadhaar/en" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold">UIDAI Portal</a>. 
+                      Crop the area where your **Name** and **Last 4 Digits** are visible (like the image below). 
+                      We do not collect sensitive data; this is solely for secure identity anchor.
+                    </p>
+                    <div className="rounded-lg border border-blue-200 overflow-hidden shadow-sm bg-white">
+                      <img src="/adhar.png" alt="How to crop Aadhaar" className="w-full h-auto" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-ocr" className={labelClass}>Aadhaar Card Image / PDF</Label>
+                    <Input id="su-ocr" type="file" accept="image/*,.pdf"
+                      onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
+                      className={inputClass} />
+                    <p className="text-xs text-[#71717A]">Upload a clear photo of the <strong>front</strong> of your Aadhaar card. We only read your <strong>name</strong> and <strong>last 4 digits</strong> — the full 12-digit number is never stored.</p>
+                  </div>
                 </div>
               )}
 
@@ -940,7 +963,7 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</>
                     : aadhaarVerified
                       ? <>Verified ✓ — Continue <ChevronRight className="h-4 w-4" /></>
-                      : <>Verify &amp; Continue <ChevronRight className="h-4 w-4" /></>}
+                      : <>Verify & Continue <ChevronRight className="h-4 w-4" /></>}
                 </button>
               </div>
             </div>

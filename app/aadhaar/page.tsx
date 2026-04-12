@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
-import { Upload, FlaskConical, FileText, CheckCircle2, Loader2 } from "lucide-react"
+import { Upload, FlaskConical, FileText, CheckCircle2, Loader2, ShieldCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Mode = "ocr" | "xml" | "demo"
@@ -151,6 +151,19 @@ export default function AadhaarOnboardingPage() {
 
           {mode === "ocr" && (
             <form onSubmit={submitOcr} className="grid gap-8">
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                   <ShieldCheck className="h-4 w-4 text-blue-600" />
+                   <span className="text-xs font-black uppercase tracking-widest text-blue-700">Privacy First Verification</span>
+                </div>
+                <p className="text-xs text-blue-800/80 leading-relaxed font-medium">
+                  We value your privacy. Download your **masked Aadhaar** from the <a href="https://myaadhaar.uidai.gov.in/genricDownloadAadhaar/en" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-extrabold">Official UIDAI Portal</a> and crop the section showing only your **Name** and **Last 4 Digits** (refer to the example below). This ensures your sensitive data stays with you while making SafeHire a secure platform.
+                </p>
+                <div className="rounded-2xl border border-blue-200 overflow-hidden shadow-md bg-white">
+                  <img src="/adhar.png" alt="Reference: Masked Aadhaar Crop" className="w-full h-auto" />
+                </div>
+              </div>
+
               <div className="grid gap-4">
                 <Label htmlFor="ocr-file" className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A1A1AA] ml-1">Card Image (Front)</Label>
                 <div className="relative group">
