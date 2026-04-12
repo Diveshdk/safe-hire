@@ -71,7 +71,7 @@ echo ""
 
 # Run build locally to check for errors
 echo "🔨 Testing build locally..."
-if pnpm build; then
+if npm run build; then
     echo "✅ Local build successful!"
 else
     echo "❌ Build failed! Please fix errors before deploying."
