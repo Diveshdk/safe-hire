@@ -56,8 +56,9 @@ export async function performOCR(fileBuffer: Buffer, fileName: string): Promise<
  */
 export function extractAadhaarDetails(text: string): { fullName?: string; aadhaarNumber?: string } {
   // ── 1. Extract Aadhaar number ─────────────────────────────────────────────
-  // Matches "XXXX XXXX XXXX" or "XXXXXXXXXXXX" (12 consecutive digits)
-  const aadhaarRegex = /\b(\d{4}[\s-]\d{4}[\s-]\d{4}|\d{12})\b/
+  // Matches "XXXX XXXX XXXX", "XXXXXXXXXXXX", or masked "XXXX XXXX 1234", "XXXXXXXX1234"
+  // Supports 'x', 'X', and '*' as placeholders
+  const aadhaarRegex = /\b([xX*\d]{4}[\s-][xX*\d]{4}[\s-]\d{4}|[xX*\d]{12})\b/
   const aadhaarMatch = text.match(aadhaarRegex)
   const aadhaarNumber = aadhaarMatch ? aadhaarMatch[0].replace(/[\s-]/g, "") : undefined
 
@@ -70,6 +71,8 @@ export function extractAadhaarDetails(text: string): { fullName?: string; aadhaa
     "male", "female", "पुरुष", "महिला", "m/", "f/",
     "address", "पता", "village", "district", "state", "pin", "post",
     "help", "toll", "free", "www", "http", "unique",
+    "digilocker", "authenticated", "digitally", "signed", "signature", "issued", "verified",
+    "powered by", "tap to zoom", "zoom", "o",
   ]
 
   function isSkipLine(line: string): boolean {
@@ -86,7 +89,7 @@ export function extractAadhaarDetails(text: string): { fullName?: string; aadhaa
         // Check 1-3 lines above for a name-like line
         for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
           const candidate = lines[j]
-          if (!isSkipLine(candidate) && /^[A-Za-z\s.'-]{3,50}$/.test(candidate)) {
+          if (!isSkipLine(candidate) && /^[A-Za-z\s.'-]{3,60}$/.test(candidate)) {
             return toTitleCase(candidate)
           }
         }
@@ -95,16 +98,51 @@ export function extractAadhaarDetails(text: string): { fullName?: string; aadhaa
     return undefined
   }
 
-  // ── 3. Strategy B: First non-skip Title-Case or ALL-CAPS name line ────────
+  // ── 3. Strategy B: Find name above a Date pattern (YYYY-MM-DD or DD-MM-YYYY)
+  // Common in DigiLocker where "DOB" keyword might be missing.
+  function findNameByDateAnchor(): string | undefined {
+    // Matches 2004-10-26 or 26-10-2004
+    const dateRegex = /\b(\d{4}[-/]\d{2}[-/]\d{2}|\d{2}[-/]\d{2}[-/]\d{4})\b/
+    for (let i = 1; i < lines.length; i++) {
+      if (dateRegex.test(lines[i])) {
+        // Check 1-2 lines above the date for a name
+        for (let j = i - 1; j >= Math.max(0, i - 2); j--) {
+          const candidate = lines[j]
+          if (!isSkipLine(candidate) && /^[A-Za-z\s.'-]{3,60}$/.test(candidate)) {
+            return toTitleCase(candidate)
+          }
+        }
+      }
+    }
+    return undefined
+  }
+
+  // ── 4. Strategy C: Find name after "To," anchor (Common in DigiLocker/e-Aadhaar)
+  function findNameByToAnchor(): string | undefined {
+    for (let i = 0; i < lines.length - 1; i++) {
+      const lower = lines[i].toLowerCase()
+      // Matches "To," "To [Name]" etc.
+      if (lower === "to" || lower === "to," || lower.startsWith("to ")) {
+        let candidate = lower === "to" || lower === "to," ? lines[i + 1] : lines[i].substring(3).trim()
+        if (candidate && !isSkipLine(candidate) && /^[A-Za-z\s.'-]{3,60}$/.test(candidate)) {
+          return toTitleCase(candidate)
+        }
+      }
+    }
+    return undefined
+  }
+
+  // ── 5. Strategy D: First non-skip Title-Case or ALL-CAPS name line ────────
   function findFirstNameLike(): string | undefined {
     for (const line of lines) {
       if (isSkipLine(line)) continue
-      // Title Case: e.g. "Divesh Kankani" — each word starts with capital
-      if (/^[A-Z][a-z]+(\s[A-Z][a-z]+){0,4}$/.test(line) && line.length >= 3 && line.length <= 60) {
+      // Title Case: e.g. "Devendra M Chaurasia"
+      // Relaxed to allow words without lowercase (initials)
+      if (/^[A-Z][a-z.]*(\s[A-Z][a-z.]*){0,6}$/.test(line) && line.length >= 3 && line.length <= 60) {
         return toTitleCase(line)
       }
       // ALL CAPS: e.g. "DIVESH KANKANI"
-      if (/^[A-Z][A-Z\s.'-]{2,50}$/.test(line) && line.split(/\s+/).length >= 2) {
+      if (/^[A-Z][A-Z\s.'-]{2,60}$/.test(line) && line.split(/\s+/).length >= 2) {
         return toTitleCase(line)
       }
     }
@@ -115,8 +153,8 @@ export function extractAadhaarDetails(text: string): { fullName?: string; aadhaa
     return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).trim()
   }
 
-  // ── 4. Run strategies in priority order ───────────────────────────────────
-  const fullName = findNameByDobAnchor() || findFirstNameLike()
+  // ── 6. Run strategies in priority order ───────────────────────────────────
+  const fullName = findNameByDobAnchor() || findNameByDateAnchor() || findNameByToAnchor() || findFirstNameLike()
 
   return { fullName, aadhaarNumber }
 }
