@@ -106,7 +106,7 @@ export default async function HomePage() {
 
         <p className="mt-8 sm:mt-10 text-lg sm:text-xl text-[#71717A] max-w-3xl mx-auto leading-relaxed font-medium">
           Eliminate corporate fraud with government-backed digital identities. 
-          Share your unique **Safe Hire ID** on your resume for instant recruiter verification.
+          Share your unique <strong className="font-bold text-[#18181B]">Safe Hire ID</strong> on your resume for instant recruiter verification.
         </p>
 
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row items-center justify-center gap-5 px-4 sm:px-0">
@@ -180,7 +180,7 @@ export default async function HomePage() {
               <div className="text-center lg:text-left">
                 <h3 className="text-3xl font-black text-[#18181B] mb-2 tracking-tight transition-all">Make Your Resume Stand Out</h3>
                 <p className="text-[#52525B] text-lg leading-[1.6] font-medium max-w-2xl">
-                  Add your **Safe Hire ID** or unique profile link to your resume. Recruiters can instantly verify your identity, education, and skills with a single click — no more fake degrees or identity fraud.
+                  Add your <strong className="font-bold text-[#18181B]">Safe Hire ID</strong> or unique profile link to your resume. Recruiters can instantly verify your identity, education, and skills with a single click — no more fake degrees or identity fraud.
                 </p>
               </div>
               <Link href="/sign-up" className="lg:ml-auto bg-[#18181B] text-white font-black uppercase tracking-widest px-8 py-4 rounded-full text-xs shadow-xl flex items-center gap-2">
