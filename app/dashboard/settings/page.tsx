@@ -12,7 +12,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("aadhaar_verified, aadhaar_full_name, safe_hire_id, certificate_name")
+    .select("aadhaar_verified, aadhaar_full_name, safe_hire_id, certificate_name, role")
     .eq("user_id", user.id)
     .single()
 
@@ -83,9 +83,11 @@ export default async function SettingsPage() {
             )}
           </div>
 
-          <div className="px-6 pb-6 pt-0 border-t border-[#F4F4F6]">
-            <CertificateNameSettings initialName={profile?.certificate_name || profile?.aadhaar_full_name || ""} />
-          </div>
+          {profile?.role === "job_seeker" && (
+            <div className="px-6 pb-6 pt-0 border-t border-[#F4F4F6]">
+              <CertificateNameSettings initialName={profile?.certificate_name || profile?.aadhaar_full_name || ""} />
+            </div>
+          )}
         </div>
 
         {/* Security Section Placeholder */}

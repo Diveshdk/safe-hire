@@ -44,15 +44,15 @@ const ROLE_CONFIG = [
 
 // Step labels per role
 const getStepLabels = (role: Role) => {
-  if (role === "employee") return ["Role", "Company CIN", "Aadhaar", "Certificate Name", "Account"]
-  if (role === "organisation") return ["Role", "Institute", "Committee", "Your Post", "Aadhaar", "Certificate Name", "Account"]
+  if (role === "employee") return ["Role", "Company CIN", "Aadhaar", "Account"]
+  if (role === "organisation") return ["Role", "Institute", "Committee", "Your Post", "Aadhaar", "Account"]
   return ["Role", "Aadhaar", "Certificate Name", "Account"]
 }
 
 // Step indices
 function getStepIdx(role: Role) {
-  if (role === "employee") return { cin: 1, institute: -1, committee: -1, mypost: -1, aadhaar: 2, certName: 3, account: 4 }
-  if (role === "organisation") return { cin: -1, institute: 1, committee: 2, mypost: 3, aadhaar: 4, certName: 5, account: 6 }
+  if (role === "employee") return { cin: 1, institute: -1, committee: -1, mypost: -1, aadhaar: 2, certName: -1, account: 3 }
+  if (role === "organisation") return { cin: -1, institute: 1, committee: 2, mypost: 3, aadhaar: 4, certName: -1, account: 5 }
   return { cin: -1, institute: -1, committee: -1, mypost: -1, aadhaar: 1, certName: 2, account: 3 }
 }
 
