@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getSupabaseServer } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { ShieldCheck, Briefcase, GraduationCap, Building2, ArrowRight, CheckCircle2 } from "lucide-react"
+import { ShieldCheck, Briefcase, GraduationCap, Building2, ArrowRight, CheckCircle2, FileText as FileIcon } from "lucide-react"
 
 const FEATURES = [
   {
@@ -106,7 +106,7 @@ export default async function HomePage() {
 
         <p className="mt-8 sm:mt-10 text-lg sm:text-xl text-[#71717A] max-w-3xl mx-auto leading-relaxed font-medium">
           Eliminate corporate fraud with government-backed digital identities. 
-          Verified profiles, verifiable credentials, and trusted business intelligence.
+          Share your unique **Safe Hire ID** on your resume for instant recruiter verification.
         </p>
 
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row items-center justify-center gap-5 px-4 sm:px-0">
@@ -170,6 +170,24 @@ export default async function HomePage() {
               <p className="text-[#52525B] leading-[1.8] font-medium">{f.desc}</p>
             </div>
           ))}
+
+          {/* New Resume Feature Card */}
+          <div className="card-pastel-mint rounded-[2.5rem] p-10 sm:p-12 card-hover border border-black/5 shadow-sm md:col-span-3">
+            <div className="flex flex-col lg:flex-row items-center gap-8">
+              <div className="h-20 w-20 rounded-[2rem] bg-emerald-600 text-white flex items-center justify-center shadow-lg shrink-0">
+                <FileIcon className="h-10 w-10" />
+              </div>
+              <div className="text-center lg:text-left">
+                <h3 className="text-3xl font-black text-[#18181B] mb-2 tracking-tight transition-all">Make Your Resume Stand Out</h3>
+                <p className="text-[#52525B] text-lg leading-[1.6] font-medium max-w-2xl">
+                  Add your **Safe Hire ID** or unique profile link to your resume. Recruiters can instantly verify your identity, education, and skills with a single click — no more fake degrees or identity fraud.
+                </p>
+              </div>
+              <Link href="/sign-up" className="lg:ml-auto bg-[#18181B] text-white font-black uppercase tracking-widest px-8 py-4 rounded-full text-xs shadow-xl flex items-center gap-2">
+                Join Now <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

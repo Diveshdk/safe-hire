@@ -64,6 +64,17 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [hasReadRules, setHasReadRules] = useState(false)
+  const rulesRef = useRef<HTMLDivElement>(null)
+
+  const handleRulesScroll = () => {
+    if (rulesRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = rulesRef.current
+      if (scrollTop + clientHeight >= scrollHeight - 20) {
+        setHasReadRules(true)
+      }
+    }
+  }
 
   const RULES_AND_REGULATIONS = `
 1. IDENTITY VERIFICATION (AADHAAR)
@@ -405,8 +416,10 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
     }
 
     setLoading(false)
-    // Show email confirmation screen – Supabase requires email link click before access
-    setRegistered(true)
+    // Directly go to dashboard
+    if (isEmployee) router.replace("/dashboard/employee")
+    else if (isOrg) router.replace("/dashboard/organisation")
+    else router.replace("/dashboard/job-seeker")
   }
 
   const inputClass = "h-12 rounded-xl border-[#E4E4E7] bg-white focus:border-[#18181B] focus:ring-0 text-[#18181B] placeholder:text-[#A1A1AA]"
@@ -810,6 +823,52 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
                 ⚠️ <strong>{isOrg ? "Representative" : "Aadhaar"} verification is required.</strong>{" "}
                 {isOrg ? "As a committee representative, please verify your identity." : "Choose your preferred method."}
               </div>
+
+              {/* Enhanced Informed Consent Scrollbox */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-[#18181B] flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+                  Read & Consent to Rules & Regulations
+                </Label>
+                <div 
+                  ref={rulesRef}
+                  onScroll={handleRulesScroll}
+                  className="h-48 overflow-y-auto rounded-xl border border-[#E4E4E7] bg-[#F9F9FB] p-4 text-[13px] leading-relaxed text-[#52525B] scrollbar-thin scrollbar-thumb-[#18181B]/10"
+                >
+                  <div className="whitespace-pre-wrap font-medium">
+                    {RULES_AND_REGULATIONS}
+                  </div>
+                  {!hasReadRules && (
+                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] text-blue-600 font-bold text-center sticky bottom-0 bg-[#F9F9FB]">
+                      ↓ Scroll to bottom to accept ↓
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex items-start space-x-3 py-1">
+                  <input
+                    id="su-agree"
+                    type="checkbox"
+                    disabled={!hasReadRules}
+                    checked={agreedToTerms}
+                    onChange={e => setAgreedToTerms(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-[#E4E4E7] text-[#18181B] focus:ring-[#18181B] disabled:opacity-30"
+                  />
+                  <div className="space-y-1">
+                    <label 
+                      htmlFor="su-agree" 
+                      className={cn(
+                        "text-xs font-semibold leading-none",
+                        !hasReadRules ? "text-[#A1A1AA]" : "text-[#18181B] cursor-pointer"
+                      )}
+                    >
+                      I have read and agree to the SafeHire Rules & Regulations.
+                    </label>
+                    <p className="text-[10px] text-[#71717A]">By checking this box, you provide explicit consent to use your name and the last 4 digits of your Aadhaar for identity verification.</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-2 flex-wrap">
                 {(["ocr", "xml"] as const).map(m => (
                   <button
@@ -870,7 +929,7 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
                 </button>
                 <button
                   type="button"
-                  disabled={!aadhaarFile || isVerifyingAadhaar}
+                  disabled={!aadhaarFile || isVerifyingAadhaar || !agreedToTerms}
                   onClick={handleVerifyAadhaarStep}
                   className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >

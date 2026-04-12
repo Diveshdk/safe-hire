@@ -21,6 +21,7 @@ import {
   X,
   LogOut,
   ChevronDown,
+  Settings,
 } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 
@@ -37,6 +38,7 @@ const NAV_MAP: Record<string, NavItem[]> = {
     { label: "Jobs", href: "/dashboard/employee/jobs", icon: <Briefcase className="h-4 w-4" /> },
     { label: "Applicants", href: "/dashboard/employee/applicants", icon: <Users className="h-4 w-4" /> },
     { label: "My Profile", href: "/dashboard/profile", icon: <User className="h-4 w-4" /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings className="h-4 w-4" /> },
   ],
   employer_admin: [
     { label: "Overview", href: "/dashboard/employee", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -44,6 +46,7 @@ const NAV_MAP: Record<string, NavItem[]> = {
     { label: "Jobs", href: "/dashboard/employee/jobs", icon: <Briefcase className="h-4 w-4" /> },
     { label: "Applicants", href: "/dashboard/employee/applicants", icon: <Users className="h-4 w-4" /> },
     { label: "My Profile", href: "/dashboard/profile", icon: <User className="h-4 w-4" /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings className="h-4 w-4" /> },
   ],
   job_seeker: [
     { label: "Overview", href: "/dashboard/job-seeker", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -53,6 +56,7 @@ const NAV_MAP: Record<string, NavItem[]> = {
     { label: "Certificates", href: "/dashboard/job-seeker/certificates", icon: <Award className="h-4 w-4" /> },
     { label: "University Results", href: "/dashboard/job-seeker/university", icon: <GraduationCap className="h-4 w-4" /> },
     { label: "AI Resume Review", href: "/dashboard/job-seeker/ai-resume", icon: <Bot className="h-4 w-4" /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings className="h-4 w-4" /> },
   ],
   organisation: [
     { label: "Overview", href: "/dashboard/organisation", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -60,6 +64,7 @@ const NAV_MAP: Record<string, NavItem[]> = {
     { label: "Manage Events", href: "/dashboard/organisation/events", icon: <CalendarDays className="h-4 w-4" /> },
     { label: "University Results", href: "/dashboard/organisation/university-results", icon: <GraduationCap className="h-4 w-4" /> },
     { label: "My Profile", href: "/dashboard/profile", icon: <User className="h-4 w-4" /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings className="h-4 w-4" /> },
   ],
 }
 

@@ -50,6 +50,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, message: "Invalid identity data." }, { status: 400 })
       }
 
+      // Blacklist check
+      const { data: blacklisted } = await supabaseAdmin
+        .from("identity_blacklist")
+        .select("id")
+        .eq("identity_hash", aadhaarKey)
+        .maybeSingle()
+
+      if (blacklisted) {
+        return NextResponse.json({ 
+          ok: false, 
+          message: "This identity has been deactivated/erased and cannot be used for a new account." 
+        }, { status: 403 })
+      }
+
       const { data: existing, error: dupErr } = await supabaseAdmin
         .from("profiles")
         .select("user_id, role")

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ShieldCheck, User, Briefcase, Building2, FileText, Award, GraduationCap, Activity, CheckCircle2, Users, Calendar, MessageSquare, Trash2, Loader2, ArrowRight } from "lucide-react"
+import { ShieldCheck, User, Briefcase, Building2, FileText, Award, GraduationCap, Activity, CheckCircle2, Users, Calendar, MessageSquare, Trash2, Loader2, ArrowRight, Share2, Copy, Check } from "lucide-react"
 import { AchievementsCertificates } from "@/components/dashboard/achievements-certificates"
 import { UniversityResultsSection } from "@/components/dashboard/university-results-section"
 import { FollowButton } from "@/components/dashboard/follow-button"
@@ -39,6 +39,14 @@ interface ProfileClientProps {
 
 export function ProfileClient({ profile, documents, stats, isOwner, currentUserId }: ProfileClientProps) {
   const isOrg = profile.role === "organisation"
+  const [copied, setCopied] = useState(false)
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/profile/${profile.safe_hire_id}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
   
   // Define tabs based on role and ownership
   const tabs = [
@@ -143,6 +151,23 @@ export function ProfileClient({ profile, documents, stats, isOwner, currentUserI
                     />
                   </div>
                 )}
+
+                {/* Share Button (Always visible) */}
+                <div className="mt-4">
+                  <button
+                    onClick={handleShare}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 h-11 rounded-2xl border text-sm font-bold transition-all",
+                      copied 
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                        : "bg-white border-[#E4E4E7] text-[#18181B] hover:bg-[#F4F4F6] hover:border-[#18181B]/20 shadow-sm"
+                    )}
+                  >
+                    {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                    {copied ? "Link Copied!" : "Share Profile"}
+                  </button>
+                  <p className="text-[10px] text-center text-[#A1A1AA] mt-2 font-medium">Anyone with this link can view your verified profile</p>
+                </div>
               </div>
             </div>
           </div>

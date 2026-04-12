@@ -81,6 +81,20 @@ export async function POST(req: Request) {
         // Rules:
         // 1. Job Seeker → one account per identity globally
         // 2. Organisation → one account per committee per identity
+        // 3. Blacklist → check if identity hash is erased/blacklisted
+        const { data: blacklisted } = await supabaseAdmin
+          .from("identity_blacklist")
+          .select("id")
+          .eq("identity_hash", aadhaarKey)
+          .maybeSingle()
+
+        if (blacklisted) {
+          return NextResponse.json(
+            { success: false, message: "This identity has been deactivated/erased and cannot be used for a new account." },
+            { status: 403 }
+          )
+        }
+
         const hasJobSeeker = matches?.some((m: any) => m.role === "job_seeker" && m.user_id !== currentUserId)
         const inSameCommittee = committeeId && matches?.some(
           (m: any) => m.committee_id === committeeId && m.user_id !== currentUserId
