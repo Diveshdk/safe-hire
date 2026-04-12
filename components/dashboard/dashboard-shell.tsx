@@ -146,8 +146,8 @@ export function DashboardShell({ children, role, displayName, safeHireId, aadhaa
         {/* Logo */}
         <div className="px-5 py-4 flex items-center justify-between border-b border-[#E4E4E7] shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="h-8 w-8 rounded-lg bg-[#18181B] flex items-center justify-center group-hover:scale-105 transition-transform">
-              <span className="text-white text-xs font-bold">SH</span>
+            <div className="h-8 w-8 rounded-lg overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
+              <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
             </div>
             <span className="font-bold text-[#18181B] text-sm">Safe Hire</span>
           </Link>
@@ -219,8 +219,8 @@ export function DashboardShell({ children, role, displayName, safeHireId, aadhaa
 
           {/* Logo (mobile only) */}
           <Link href="/dashboard" className="lg:hidden flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-[#18181B] flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">SH</span>
+            <div className="h-7 w-7 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
             </div>
           </Link>
 

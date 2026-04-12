@@ -74,8 +74,8 @@ export default function SignInPage() {
       {/* Left panel — decorative */}
       <div className="hidden lg:flex lg:w-[45%] bg-[#18181B] flex-col justify-between p-12">
         <Link href="/" className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
-            <span className="text-white font-bold">SH</span>
+          <div className="h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center">
+            <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
           </div>
           <span className="font-semibold text-white text-lg">Safe Hire</span>
         </Link>
@@ -118,8 +118,8 @@ export default function SignInPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="h-9 w-9 rounded-xl bg-[#18181B] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">SH</span>
+            <div className="h-9 w-9 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
             </div>
             <span className="font-semibold text-[#18181B]">Safe Hire</span>
           </div>

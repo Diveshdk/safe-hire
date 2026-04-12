@@ -105,8 +105,8 @@ export default function AadhaarOnboardingPage() {
       <div className="max-w-xl w-full">
         {/* Header content */}
         <div className="text-center space-y-8 sm:space-y-10 mb-12 sm:mb-16">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-[#18181B] shadow-2xl transform rotate-3">
-            <span className="text-white text-xl font-black">SH</span>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white border border-[#E4E4E7] shadow-xl transform rotate-3 overflow-hidden">
+            <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover p-2" />
           </div>
           <div className="space-y-4">
             <h1 className="text-4xl sm:text-5xl font-black text-[#18181B] tracking-tight uppercase leading-[0.9]">

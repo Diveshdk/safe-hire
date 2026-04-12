@@ -11,10 +11,10 @@ export default function PublicCompanyCheckPage() {
       <header className="bg-[#18181B] text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 sm:px-10 py-5 sm:py-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3.5 group">
-            <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-all shadow-inner">
-              <span className="text-white font-black text-sm">SH</span>
+            <div className="h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center group-hover:scale-105 transition-all">
+              <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
             </div>
-            <span className="font-black text-xl tracking-tighter">Safe Hire</span>
+            <span className="font-black text-xl tracking-tighter text-white">SafeHire</span>
           </Link>
           <Link href="/" className="text-sm font-bold text-white/50 hover:text-white transition-all flex items-center gap-2 hover:-translate-x-1">
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back to Home</span>

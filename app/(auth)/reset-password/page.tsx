@@ -52,8 +52,8 @@ export default function ResetPasswordPage() {
     <main className="min-h-dvh bg-background flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-2 mb-8">
-          <div className="h-9 w-9 rounded-xl bg-[#18181B] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">SH</span>
+          <div className="h-9 w-9 rounded-xl overflow-hidden flex items-center justify-center">
+            <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
           </div>
           <span className="font-semibold text-[#18181B]">Safe Hire</span>
         </div>

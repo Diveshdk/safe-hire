@@ -434,8 +434,8 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-[#18181B] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">SH</span>
+          <div className="h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center">
+            <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
           </div>
           <span className="font-semibold text-[#18181B] text-lg">Safe Hire</span>
         </div>

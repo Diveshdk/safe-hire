@@ -57,10 +57,10 @@ export default async function HomePage() {
       <header className="bg-[#18181B] text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 sm:px-10 py-5 sm:py-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3.5 group">
-            <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-all shadow-inner">
-              <span className="text-white font-black text-sm">SH</span>
+            <div className="h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center group-hover:scale-105 transition-all">
+              <img src="/logo.png" alt="SafeHire" className="h-full w-full object-cover" />
             </div>
-            <span className="font-black text-xl tracking-tighter">Safe Hire</span>
+            <span className="font-black text-xl tracking-tighter text-white">SafeHire</span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-10 text-[13px] font-black uppercase tracking-widest text-white/60">
