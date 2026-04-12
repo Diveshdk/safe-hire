@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServer } from "@/lib/supabase/server"
 import { performOCR, extractCertificateDetails, extractAadhaarDetails } from "@/lib/ocr"
+import { buildAadhaarKey, extractLast4, maskAadhaar } from "@/lib/utils/crypto"
 
 const DOC_TYPES = ["aadhaar", "certificate", "academic_result", "resume", "event_certificate", "other"] as const
 type DocType = (typeof DOC_TYPES)[number]
@@ -121,32 +122,51 @@ export async function POST(req: Request) {
       const { fullName: extractedName, aadhaarNumber } = extractAadhaarDetails(text)
 
       if (aadhaarNumber) {
-        // Check for duplicate Aadhaar
-        const { data: existingProfile } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("aadhaar_number", aadhaarNumber)
-          .single()
+        const last4 = extractLast4(aadhaarNumber)
+        const nameForKey = extractedName || ""
 
-        if (existingProfile && existingProfile.user_id !== user.id) {
-          return NextResponse.json({ ok: false, message: "This Aadhaar number is already linked to another account." }, { status: 400 })
+        if (last4.length === 4 && nameForKey) {
+          let aadhaarKey: string
+          try {
+            aadhaarKey = buildAadhaarKey(last4, nameForKey)
+          } catch {
+            verificationStatus = "pending"
+            ocrData.ocr_error = "Could not build identity key from Aadhaar data."
+            return
+          }
+
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("aadhaar_number", aadhaarKey)
+            .maybeSingle()
+
+          if (existingProfile && existingProfile.user_id !== user.id) {
+            return NextResponse.json(
+              { ok: false, message: "This identity is already linked to another account." },
+              { status: 400 }
+            )
+          }
+
+          ocrName = nameForKey
+          ocrData.extracted_name = nameForKey
+          ocrData.aadhaar_last_4 = last4
+          ocrData.masked_display = maskAadhaar(last4)
+
+          await supabase
+            .from("profiles")
+            .update({
+              aadhaar_verified: true,
+              aadhaar_number: aadhaarKey,
+              full_name: nameForKey || undefined,
+            })
+            .eq("user_id", user.id)
+
+          verificationStatus = "verified"
+        } else {
+          verificationStatus = "pending"
+          ocrData.ocr_error = "Could not extract sufficient identity details from image."
         }
-
-        ocrName = extractedName || ""
-        ocrData.extracted_aadhaar_number = aadhaarNumber
-        ocrData.extracted_name = extractedName
-
-        // Update profile
-        await supabase
-          .from("profiles")
-          .update({
-            aadhaar_verified: true,
-            aadhaar_number: aadhaarNumber,
-            full_name: extractedName || undefined, // Update name if extracted
-          })
-          .eq("user_id", user.id)
-
-        verificationStatus = "verified"
       } else {
         verificationStatus = "pending"
         ocrData.ocr_error = "Could not extract Aadhaar number from image."

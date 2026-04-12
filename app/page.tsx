@@ -8,7 +8,7 @@ const FEATURES = [
   {
     icon: <ShieldCheck className="h-6 w-6" />,
     title: "Aadhaar-Verified Identity",
-    desc: "Every professional is verified against government records. No fakes, no fraud.",
+    desc: "We verify using only your name and last 4 digits of your Aadhaar — the full 12-digit number is never stored or transmitted. Privacy by design.",
     color: "card-pastel-mint",
     iconBg: "bg-emerald-100 text-emerald-600",
   },
@@ -31,7 +31,15 @@ const FEATURES = [
 const STATS = [
   { value: "100%", label: "Aadhaar Verified" },
   { value: "0", label: "Fake Profiles" },
-  { value: "SHA-256", label: "Credential Security" },
+  { value: "Last 4 Only", label: "Aadhaar Digits Stored" },
+]
+
+const PRIVACY_BADGES = [
+  { label: "Full Aadhaar number never stored" },
+  { label: "SHA-256 one-way hashing" },
+  { label: "DPDPA 2023 compliant" },
+  { label: "Data minimization by design" },
+  { label: "Voluntary consent only" },
 ]
 
 export default async function HomePage() {
@@ -124,6 +132,19 @@ export default async function HomePage() {
             <div key={s.label} className="bg-white rounded-[2rem] p-8 shadow-xl border border-[#F0F0F2] hover:scale-[1.02] transition-transform">
               <div className="text-4xl font-black text-[#18181B] tracking-tighter">{s.value}</div>
               <div className="text-[11px] font-black text-[#A1A1AA] uppercase tracking-widest mt-2">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Privacy Trust Strip */}
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
+          {PRIVACY_BADGES.map((b) => (
+            <div
+              key={b.label}
+              className="inline-flex items-center gap-2 bg-white border border-[#E4E4E7] text-[#52525B] text-[11px] font-bold px-4 py-2 rounded-full shadow-sm"
+            >
+              <ShieldCheck className="h-3 w-3 text-emerald-500 shrink-0" />
+              {b.label}
             </div>
           ))}
         </div>

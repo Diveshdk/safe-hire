@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabase/server"
+import { buildAadhaarKey, maskAadhaar, extractLast4 } from "@/lib/utils/crypto"
 import {
   apisetuInitiateOtp,
   apisetuConfirmOtp,
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   const isSignup = url.searchParams.get("signup") === "true"
   const isMultipart = req.headers.get("content-type")?.includes("multipart/form-data")
 
-  // OCR or Offline XML path (Multipart)
+  // ── OCR or Offline XML path (Multipart) ────────────────────────────────────
   if (isMultipart) {
     try {
       const form = await (req as any).formData()
@@ -34,91 +35,137 @@ export async function POST(req: Request) {
 
       if (modeQuery === "offline-xml") {
         res = await verifyOfflineXml(buffer.toString())
-        // XML might not have the cleartext number, but we need a placeholder or skip check
-        if (res.success && !res.aadhaarNumber) res.aadhaarNumber = "XML_VERIFIED"
+        // XML might not have the cleartext number; use a placeholder so duplicate check can proceed
+        if (res.success && !res.aadhaarNumber) res.aadhaarNumber = "0000"
       } else {
         res = await verifyAadhaarOCR(buffer, file.name)
       }
 
-      if (!res.success || !res.fullName || !res.aadhaarNumber) {
-        return NextResponse.json(res, { status: 400 })
+      if (!res.success || !res.fullName) {
+        return NextResponse.json(
+          { success: false, message: res.message || "Could not extract details from Aadhaar document." },
+          { status: 400 }
+        )
       }
 
-      // ── DUPLICATE CHECK (ADMIN) ───────────────────────────────────────────
-      // Normalize: remove spaces, dashes, etc.
-      const normalizedAadhaar = res.aadhaarNumber.replace(/\D/g, "")
-      
+      // ── PRIVACY: Extract ONLY the last 4 digits — never store the full number ─
+      const last4 = extractLast4(res.aadhaarNumber || "")
+      const fullName = res.fullName as string
+
+      // We need at least 4 digits to do the duplicate check
+      // (XML flow may not have them — skip check in that case)
+      const hasEnoughForCheck = last4.length === 4
+
       const supabaseAdmin = getSupabaseAdmin()
       const role = url.searchParams.get("role")
       const committeeId = url.searchParams.get("committee_id")
 
-      const { data: matches, error: checkError } = await supabaseAdmin
-        .from("profiles")
-        .select("user_id, role, committee_id")
-        .eq("aadhaar_number", normalizedAadhaar)
-      
-      if (checkError) return NextResponse.json({ success: false, message: checkError.message }, { status: 500 })
+      if (hasEnoughForCheck) {
+        let aadhaarKey: string
+        try {
+          aadhaarKey = buildAadhaarKey(last4, fullName)
+        } catch {
+          return NextResponse.json({ success: false, message: "Could not process identity data." }, { status: 400 })
+        }
 
-      // Logic: 
-      // 1. Job Seeker: One account per Aadhaar globally.
-      // 2. Organisation: Allowed multiple roles, but only once per specific committee.
-      const hasJobSeeker = matches?.some((m: any) => m.role === "job_seeker" && m.user_id !== currentUserId)
-      const inSameCommittee = committeeId && matches?.some((m: any) => m.committee_id === committeeId && m.user_id !== currentUserId)
+        // ── DUPLICATE CHECK ──────────────────────────────────────────────────
+        const { data: matches, error: checkError } = await supabaseAdmin
+          .from("profiles")
+          .select("user_id, role, committee_id")
+          .eq("aadhaar_number", aadhaarKey)
 
-      if (role === "job_seeker" && hasJobSeeker) {
-        return NextResponse.json({ success: false, message: "This Aadhaar is already registered with a Job Seeker account." }, { status: 409 })
-      }
-      if (inSameCommittee) {
-        return NextResponse.json({ success: false, message: "You have already registered for this committee with this Aadhaar." }, { status: 409 })
-      }
+        if (checkError) {
+          return NextResponse.json({ success: false, message: checkError.message }, { status: 500 })
+        }
 
-      // If signup mode, return extracted data immediately (frontend will pass to profile/setup)
-      if (isSignup) {
+        // Rules:
+        // 1. Job Seeker → one account per identity globally
+        // 2. Organisation → one account per committee per identity
+        const hasJobSeeker = matches?.some((m: any) => m.role === "job_seeker" && m.user_id !== currentUserId)
+        const inSameCommittee = committeeId && matches?.some(
+          (m: any) => m.committee_id === committeeId && m.user_id !== currentUserId
+        )
+
+        if (role === "job_seeker" && hasJobSeeker) {
+          return NextResponse.json(
+            { success: false, message: "An account with this identity already exists as a Job Seeker." },
+            { status: 409 }
+          )
+        }
+        if (inSameCommittee) {
+          return NextResponse.json(
+            { success: false, message: "You have already registered for this committee with this identity." },
+            { status: 409 }
+          )
+        }
+
+        // ── SIGNUP MODE: Return to frontend; setup API will do the final save ─
+        if (isSignup) {
+          return NextResponse.json({
+            success: true,
+            fullName,
+            // Return masked display value + last4 for the key — never full 12 digits
+            aadhaarNumber: maskAadhaar(last4),
+            aadhaarLast4: last4,
+          })
+        }
+
+        // ── LOGGED-IN USER (post-login verification flow) ────────────────────
+        if (!currentUserId) {
+          return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
+        }
+
+        const { error: upsertError } = await supabaseAdmin.from("profiles").upsert(
+          {
+            user_id: currentUserId,
+            aadhaar_full_name: fullName,
+            aadhaar_number: aadhaarKey,      // Store HASH only
+            aadhaar_verified: true,
+            aadhaar_verified_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        )
+        if (upsertError) {
+          return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 })
+        }
+
+        await supabaseAdmin.from("verifications").insert({
+          subject_user_id: currentUserId,
+          type: "aadhaar",
+          provider: modeQuery === "offline-xml" ? "xml" : "ocr",
+          status: "success",
+          evidence_ref: last4,              // Store only last 4 for audit trail
+        }).throwOnError().then(() => {}).catch(() => {})
+
         return NextResponse.json({
           success: true,
-          fullName: res.fullName,
-          aadhaarNumber: normalizedAadhaar,
+          fullName,
+          aadhaarNumber: maskAadhaar(last4),
         })
       }
 
-      if (!currentUserId) return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
-
-      // Final save for logged-in users (verification page flow)
-      const { error: upsertError } = await supabaseAdmin.from("profiles").upsert(
-        {
-          user_id: currentUserId,
-          aadhaar_full_name: res.fullName,
-          aadhaar_number: normalizedAadhaar,
-          aadhaar_verified: true,
-          aadhaar_verified_at: new Date().toISOString(),
-        },
+      // XML path with no number — just return name success
+      if (isSignup) {
+        return NextResponse.json({ success: true, fullName, aadhaarNumber: null, aadhaarLast4: null })
+      }
+      if (!currentUserId) {
+        return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
+      }
+      await supabaseAdmin.from("profiles").upsert(
+        { user_id: currentUserId, aadhaar_full_name: fullName, aadhaar_verified: true, aadhaar_verified_at: new Date().toISOString() },
         { onConflict: "user_id" }
       )
+      return NextResponse.json({ success: true, fullName, aadhaarNumber: null })
 
-      if (upsertError) return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 })
-
-      await supabase.from("verifications").insert({
-        subject_user_id: currentUserId,
-        type: "aadhaar",
-        provider: modeQuery === "offline-xml" ? "xml" : "ocr",
-        status: "success",
-        evidence_ref: normalizedAadhaar.substring(8),
-      })
-
-      return NextResponse.json({
-        success: true,
-        fullName: res.fullName,
-        aadhaarNumber: `XXXX-XXXX-${normalizedAadhaar.substring(8)}`,
-      })
     } catch (e: any) {
       return NextResponse.json({ success: false, message: e?.message || "Verification error" }, { status: 500 })
     }
   }
 
-  // JSON path (API Setu / Demo)
+  // ── JSON path (API Setu / Demo) ─────────────────────────────────────────────
   const body = await req.json().catch(() => ({}))
   const mode = body.mode || process.env.NEXT_PUBLIC_DEFAULT_AADHAAR_MODE || "apisetu"
-  const step = body.step 
+  const step = body.step
 
   try {
     if (mode === "apisetu") {
@@ -129,14 +176,10 @@ export async function POST(req: Request) {
       if (step === "confirm") {
         const res = await apisetuConfirmOtp({ txnId: body.txnId, otp: body.otp })
         if (!res.success || !res.fullName) return NextResponse.json(res, { status: 400 })
-        
-        // APISetu currently doesn't provide the UID in confirmation result. 
-        // If it did, we would add the duplicate check here too.
-
+        // APISetu does not return the UID in its confirmation — no duplicate check possible here
         if (isSignup) return NextResponse.json({ success: true, fullName: res.fullName })
         if (!currentUserId) return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
-
-        await supabase.from("profiles").upsert(
+        await getSupabaseAdmin().from("profiles").upsert(
           { user_id: currentUserId, aadhaar_full_name: res.fullName, aadhaar_verified: true, aadhaar_verified_at: new Date().toISOString() },
           { onConflict: "user_id" }
         )
@@ -149,8 +192,7 @@ export async function POST(req: Request) {
       if (!res.success || !res.fullName) return NextResponse.json(res, { status: 400 })
       if (isSignup) return NextResponse.json({ success: true, fullName: res.fullName })
       if (!currentUserId) return NextResponse.json({ success: false, message: "Not logged in" }, { status: 401 })
-
-      await supabase.from("profiles").upsert(
+      await getSupabaseAdmin().from("profiles").upsert(
         { user_id: currentUserId, aadhaar_full_name: res.fullName, aadhaar_verified: true, aadhaar_verified_at: new Date().toISOString() },
         { onConflict: "user_id" }
       )

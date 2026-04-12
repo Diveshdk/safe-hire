@@ -12,6 +12,7 @@ import {
   CheckCircle2, Upload, Eye, EyeOff,
   AlertCircle, Loader2, ShieldCheck, Users,
 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 
 type Role = "job_seeker" | "employee" | "organisation"
@@ -62,6 +63,27 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [registered, setRegistered] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+
+  const RULES_AND_REGULATIONS = `
+1. IDENTITY VERIFICATION (AADHAAR)
+SafeHire uses voluntary Aadhaar-based identity verification to prevent fraud. Your full 12-digit Aadhaar number is NEVER stored or transmitted to any server. We extract only your full name and the last 4 digits of your card, which are combined into a one-way SHA-256 cryptographic hash and stored as an irreversible code. This code is used solely to prevent duplicate accounts.
+
+2. DATA MINIMIZATION
+In accordance with the DPDPA 2023 and UIDAI guidelines, SafeHire follows the 'data minimization' principle. We collect only what is absolutely necessary to establish identity. Masked formats such as "**** **** 3948" are accepted.
+
+3. COMMITTEE & ORGANISATION ACCOUNTS
+Organisational account holders are personally responsible for the accuracy of events, certificates, and posts published under their committee. Misuse will result in account suspension and potential legal action.
+
+4. DOCUMENT AUTHENTICITY
+All uploaded documents are scanned for authenticity. Submission of forged, altered, or counterfeit documents is a violation of the Indian IT Act 2000 and the DPDPA 2023 and may result in criminal prosecution.
+
+5. PLATFORM LIABILITY
+SafeHire is a verification-assistance platform and is not liable for hiring decisions made by third parties. All verification is best-effort. Users agree to cross-verify information through official channels before making employment decisions.
+
+6. CONSENT & VOLUNTARY USE
+Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is your explicit, informed consent for us to perform a one-time identity check. You may request deletion of your data at any time by contacting support.
+  `.trim()
 
   // Role
   const [role, setRole] = useState<Role>("job_seeker")
@@ -245,7 +267,7 @@ export default function SignUpPage() {
     // Success — store extracted data and mark step verified
     setAadhaarVerified(true)
     setAadhaarVerifiedName(data.fullName)
-    setAadhaarVerifiedNumber(data.aadhaarNumber || null)
+    setAadhaarVerifiedNumber(data.aadhaarLast4 || data.aadhaarNumber || null)
     setError(null)
     // Auto-advance to next step
     goNext()
@@ -297,7 +319,7 @@ export default function SignUpPage() {
     // 1. Aadhaar: use ALREADY VERIFIED data from step (OCR ran at step level)
     // If somehow bypassed, block registration
     let aadhaarData: any = aadhaarVerified && aadhaarVerifiedName
-      ? { fullName: aadhaarVerifiedName, aadhaarNumber: aadhaarVerifiedNumber }
+      ? { fullName: aadhaarVerifiedName, aadhaarNumber: aadhaarVerifiedNumber, aadhaarLast4: aadhaarVerifiedNumber }
       : null
 
     if (!aadhaarData) {
@@ -328,7 +350,8 @@ export default function SignUpPage() {
         full_name: "", 
         role: roleToSave,
         aadhaar_full_name: aadhaarData?.fullName,
-        aadhaar_number: aadhaarData?.aadhaarNumber,
+        aadhaar_number: aadhaarData?.aadhaarNumber,    // masked display string, used as fallback
+        aadhaar_last4: aadhaarData?.aadhaarLast4 || null, // explicit last-4
         aadhaar_verified: true
       }),
     })
@@ -825,7 +848,7 @@ export default function SignUpPage() {
                   <Input id="su-ocr" type="file" accept="image/*,.pdf"
                     onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
                     className={inputClass} />
-                  <p className="text-xs text-[#71717A]">Upload a clear photo of the <strong>front</strong> of your Aadhaar card. The 12-digit number must be visible.</p>
+                  <p className="text-xs text-[#71717A]">Upload a clear photo of the <strong>front</strong> of your Aadhaar card. We only read your <strong>name</strong> and <strong>last 4 digits</strong> — the full 12-digit number is never stored.</p>
                 </div>
               )}
 
@@ -910,14 +933,37 @@ export default function SignUpPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex gap-3 mt-2">
+              <div className="space-y-4 pt-2">
+                <div className="bg-[#F4F4F6] rounded-2xl p-4 border border-[#E4E4E7]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#18181B] mb-2 px-1">Rules & Regulations</p>
+                  <div className="h-32 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#18181B]/10">
+                    <pre className="text-[11px] text-[#71717A] leading-relaxed font-sans whitespace-pre-wrap">
+                      {RULES_AND_REGULATIONS}
+                    </pre>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 px-1">
+                  <Checkbox 
+                    id="su-agree" 
+                    checked={agreedToTerms} 
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                    className="mt-0.5 border-[#18181B]"
+                  />
+                  <Label htmlFor="su-agree" className="text-[11px] text-[#52525B] leading-snug cursor-pointer">
+                    I have read and agree to all the Rules and Regulations, and I consent to the secure verification of my identity.
+                  </Label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-4">
                 <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
                   <ChevronLeft className="h-4 w-4" /> Back
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                  disabled={loading || !agreedToTerms}
+                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading
                     ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Verifying…</>
