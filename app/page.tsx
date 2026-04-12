@@ -42,7 +42,13 @@ const PRIVACY_BADGES = [
   { label: "Voluntary consent only" },
 ]
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: { code?: string } }) {
+  if (searchParams.code) {
+    // Safety net: If a code lands on the home page instead of the callback,
+    // manually redirect to the callback route.
+    redirect(`/auth/callback?code=${searchParams.code}&next=/reset-password`)
+  }
+
   const supabase = getSupabaseServer()
   const {
     data: { user },
