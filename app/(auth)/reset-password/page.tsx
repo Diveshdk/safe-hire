@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { ShieldCheck, Eye, EyeOff, CheckCircle2 } from "lucide-react"
 
+import { AuthChangeEvent, Session } from "@supabase/supabase-js"
+
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [password, setPassword] = useState("")
@@ -18,14 +20,28 @@ export default function ResetPasswordPage() {
   const [sessionReady, setSessionReady] = useState(false)
 
   // Supabase sends the recovery token via URL fragment; we need to let the 
-  // client SDK pick it up and exchange it for a session
+  // client SDK pick it up and exchange it for a session.
   useEffect(() => {
     const supabase = getSupabaseBrowser()
-    supabase.auth.onAuthStateChange((event: string) => {
-      if (event === "PASSWORD_RECOVERY") {
+    
+    // Check for an existing session immediately (needed if redirected from server)
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+      if (session) {
         setSessionReady(true)
       }
     })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      // "PASSWORD_RECOVERY" is the specific event for reset links, 
+      // but we also accept "SIGNED_IN" if the session was established in a previous step.
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        setSessionReady(true)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
