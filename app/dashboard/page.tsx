@@ -16,7 +16,6 @@ export default async function DashboardRootPage() {
     .eq("user_id", user.id)
     .maybeSingle()
 
-  if (!profile?.aadhaar_verified) redirect("/aadhaar")
 
   if (profile?.role === "employer_admin" || profile?.role === "employee") redirect("/dashboard/employee")
   if (profile?.role === "organisation") redirect("/dashboard/organisation")

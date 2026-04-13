@@ -211,9 +211,9 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
           <button
             type="button"
             onClick={onSkip}
-            className="text-xs font-semibold text-[#71717A] hover:text-[#18181B] flex items-center justify-center gap-1.5"
+            className="w-full text-[10px] font-black uppercase tracking-[0.15em] text-[#A1A1AA] h-12 rounded-xl border border-dashed border-[#E4E4E7] hover:border-[#A1A1AA] hover:text-[#71717A] hover:bg-[#F9F9FB] transition-all flex items-center justify-center gap-2"
           >
-            <X className="h-3.5 w-3.5" /> Skip verification for now
+            Skip Verification Now
           </button>
         )}
       </div>

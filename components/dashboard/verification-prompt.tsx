@@ -27,8 +27,8 @@ export function VerificationPrompt({ profile }: { profile: any }) {
       return
     }
 
-    // Show after 2 seconds
-    const timer = setTimeout(() => setIsOpen(true), 2000)
+    // Show after 5 seconds to be less intrusive and let user see the dashboard first
+    const timer = setTimeout(() => setIsOpen(true), 5000)
     return () => clearTimeout(timer)
   }, [profile])
 
@@ -56,7 +56,7 @@ export function VerificationPrompt({ profile }: { profile: any }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+      <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
         <div className="relative">
           {/* Header Image/Background */}
           <div className="h-40 bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center relative overflow-hidden">
@@ -105,9 +105,9 @@ export function VerificationPrompt({ profile }: { profile: any }) {
                   </button>
                   <button
                     onClick={handleDismiss}
-                    className="w-full bg-white text-[#A1A1AA] text-xs font-bold h-10 rounded-xl hover:bg-[#F4F4F6] hover:text-[#71717A] transition-all"
+                    className="w-full text-[10px] font-black uppercase tracking-[0.15em] text-[#A1A1AA] h-12 rounded-xl border border-dashed border-[#E4E4E7] hover:border-[#A1A1AA] hover:text-[#71717A] hover:bg-[#F9F9FB] transition-all flex items-center justify-center gap-2"
                   >
-                    Maybe later
+                    Skip Verification Now
                   </button>
                 </div>
               </div>
