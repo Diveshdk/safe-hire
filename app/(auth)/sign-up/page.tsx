@@ -268,9 +268,30 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
     goNext()
   }
 
+  const persistPendingData = () => {
+    const data = {
+      role,
+      certificate_name: certificateName,
+      aadhaar_full_name: aadhaarVerifiedName,
+      aadhaar_last4: aadhaarVerifiedNumber,
+      aadhaar_verified: aadhaarVerified,
+      institute_id: selectedInstituteId,
+      committee_id: committeeOther ? null : selectedCommitteeId,
+      committee_name: committeeOther ? customCommitteeName : null,
+      committee_position: position,
+    }
+    // Save to a transient cookie that the auth callback can read
+    document.cookie = `sb-pending-signup=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=600; SameSite=Lax`
+    console.log("Pending signup data persisted to cookie")
+  }
+
   async function handleGoogleSignUp() {
     clearError()
     setLoading(true)
+    
+    // Persist data before redirecting to Google
+    persistPendingData()
+    
     const supabase = getSupabaseBrowser()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -867,10 +888,13 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
                 <button
                   type="button"
                   disabled={!certificateName.trim()}
-                  onClick={goNext}
+                  onClick={() => {
+                    persistPendingData()
+                    goNext()
+                  }}
                   className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Continue <ChevronRight className="h-4 w-4" />
+                  Save & Next <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
