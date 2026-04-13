@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { AadhaarVerificationForm } from "@/components/dashboard/aadhaar-verification-form"
 
 type Role = "job_seeker" | "employee" | "organisation"
 type AadhaarMode = "xml" | "ocr"
@@ -249,41 +250,38 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
     return null
   }
 
-  // ── LIVE Aadhaar verification at step level ──────────────────────────────
-  // Called when user clicks "Verify & Continue" on Aadhaar step.
-  // Runs OCR/XML parse immediately — user cannot advance until name is extracted.
-  async function handleVerifyAadhaarStep() {
-    if (!aadhaarFile) { setError(aadhaarMode === "xml" ? "Please select your Aadhaar XML file." : "Please upload your Aadhaar card image."); return }
-    setIsVerifyingAadhaar(true)
+  // ── Aadhaar verification success callback ──────────────────────────────
+  function handleAadhaarSuccess(data: { fullName: string; last4: string | null }) {
+    setAadhaarVerified(true)
+    setAadhaarVerifiedName(data.fullName)
+    setAadhaarVerifiedNumber(data.last4)
+    setCertificateName(data.fullName) // Pre-fill certificate name
     setError(null)
+    goNext()
+  }
+
+  function handleAadhaarSkip() {
     setAadhaarVerified(false)
     setAadhaarVerifiedName(null)
     setAadhaarVerifiedNumber(null)
-
-    const modeParam = aadhaarMode === "xml" ? "offline-xml" : "ocr"
-    const roleToSave = isEmployee ? "employee" : isOrg ? "organisation" : "job_seeker"
-    const params = new URLSearchParams({ mode: modeParam, signup: "true" })
-    params.append("role", roleToSave)
-    if (selectedCommitteeId) params.append("committee_id", selectedCommitteeId)
-
-    const form = new FormData()
-    form.append("file", aadhaarFile)
-    const res = await fetch(`/api/verify/aadhaar?${params.toString()}`, { method: "POST", body: form })
-    const data = await res.json()
-    setIsVerifyingAadhaar(false)
-
-    if (!data.success || !data.fullName) {
-      setError(data.message || "Could not extract Aadhaar details. Please use a clear front photo of your Aadhaar card (ensure the 12-digit number is visible).") 
-      return
-    }
-    // Success — store extracted data and mark step verified
-    setAadhaarVerified(true)
-    setAadhaarVerifiedName(data.fullName)
-    setAadhaarVerifiedNumber(data.aadhaarLast4 || data.aadhaarNumber || null)
-    setCertificateName(data.fullName) // Pre-fill certificate name
     setError(null)
-    // Auto-advance to next step
     goNext()
+  }
+
+  async function handleGoogleSignUp() {
+    clearError()
+    setLoading(true)
+    const supabase = getSupabaseBrowser()
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+      },
+    })
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    }
   }
 
   function validateAccount(): string | null {
@@ -330,18 +328,11 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
     const supabase = getSupabaseBrowser()
 
     // 1. Aadhaar: use ALREADY VERIFIED data from step (OCR ran at step level)
-    // If somehow bypassed, block registration
     let aadhaarData: any = aadhaarVerified && aadhaarVerifiedName
       ? { fullName: aadhaarVerifiedName, aadhaarNumber: aadhaarVerifiedNumber, aadhaarLast4: aadhaarVerifiedNumber }
       : null
 
-    if (!aadhaarData) {
-      setError("Identity verification is required. Please go back and verify your Aadhaar.")
-      setLoading(false)
-      return
-    }
-
-    // 2. Create account (only if Aadhaar passed)
+    // 2. Create account (Identity is now optional at signup)
     const { error: signUpErr } = await supabase.auth.signUp({
       email,
       password,
@@ -354,7 +345,7 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
       if (signInErr) { setError(signInErr.message); setLoading(false); return }
     }
 
-    // 3. Setup profile role AND identity metadata in one go
+    // 3. Setup profile role AND identity metadata
     const roleToSave = isEmployee ? "employee" : isOrg ? "organisation" : "job_seeker"
     const setupRes = await fetch("/api/profile/setup", {
       method: "POST",
@@ -362,11 +353,11 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
       body: JSON.stringify({ 
         full_name: "", 
         role: roleToSave,
-        aadhaar_full_name: aadhaarData?.fullName,
-        aadhaar_number: aadhaarData?.aadhaarNumber,    // masked display string, used as fallback
-        aadhaar_last4: aadhaarData?.aadhaarLast4 || null, // explicit last-4
-        aadhaar_verified: true,
-        certificate_name: certificateName || aadhaarData?.fullName
+        aadhaar_full_name: aadhaarData?.fullName || null,
+        aadhaar_number: aadhaarData?.aadhaarNumber || null,
+        aadhaar_last4: aadhaarData?.aadhaarLast4 || null,
+        aadhaar_verified: !!aadhaarData,
+        certificate_name: certificateName || aadhaarData?.fullName || ""
       }),
     })
     
@@ -821,149 +812,17 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
 
           {/* ── Aadhaar Step ── */}
           {step === stepIdx.aadhaar && stepIdx.aadhaar > 0 && (
-            <div className="space-y-6">
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800 flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 shrink-0 mt-0.5 text-amber-600" />
-                <div className="space-y-1">
-                  <p className="font-bold">{isOrg ? "Representative" : "Aadhaar"} verification is required.</p>
-                  <p className="text-xs opacity-90">{isOrg ? "As a committee representative, please verify your identity to proceed." : "Choose your preferred method for secure identity anchoring."}</p>
-                </div>
-              </div>
-
-              {/* Enhanced Informed Consent Scrollbox */}
-              <div className="space-y-3">
-                <Label className="text-sm font-bold text-[#18181B] flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-blue-600" />
-                  Read & Consent to Rules & Regulations
-                </Label>
-                <div 
-                  ref={rulesRef}
-                  onScroll={handleRulesScroll}
-                  className="h-48 overflow-y-auto rounded-xl border border-[#E4E4E7] bg-[#F9F9FB] p-4 text-[13px] leading-relaxed text-[#52525B] scrollbar-thin scrollbar-thumb-[#18181B]/10"
-                >
-                  <div className="whitespace-pre-wrap font-medium">
-                    {RULES_AND_REGULATIONS}
-                  </div>
-                  {!hasReadRules && (
-                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] text-blue-600 font-bold text-center sticky bottom-0 bg-[#F9F9FB]">
-                      ↓ Scroll to bottom to accept ↓
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-start space-x-3 py-1">
-                  <input
-                    id="su-agree"
-                    type="checkbox"
-                    disabled={!hasReadRules}
-                    checked={agreedToTerms}
-                    onChange={e => setAgreedToTerms(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-[#E4E4E7] text-[#18181B] focus:ring-[#18181B] disabled:opacity-30"
-                  />
-                  <div className="space-y-1">
-                    <label 
-                      htmlFor="su-agree" 
-                      className={cn(
-                        "text-xs font-semibold leading-none",
-                        !hasReadRules ? "text-[#A1A1AA]" : "text-[#18181B] cursor-pointer"
-                      )}
-                    >
-                      I have read and agree to the SafeHire Rules & Regulations.
-                    </label>
-                    <p className="text-[10px] text-[#71717A]">By checking this box, you provide explicit consent to use your name and the last 4 digits of your Aadhaar for identity verification.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                {(["ocr", "xml"] as const).map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => { setAadhaarMode(m); setAadhaarFile(null); setAadhaarVerified(false); setAadhaarVerifiedName(null); setAadhaarVerifiedNumber(null); setError(null) }}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all",
-                      aadhaarMode === m
-                        ? "border-[#18181B] bg-[#18181B] text-white"
-                        : "border-[#E4E4E7] text-[#71717A] hover:border-[#A1A1AA] hover:text-[#18181B]"
-                    )}
-                  >
-                    {m === "ocr" ? <><Upload className="h-3.5 w-3.5" /> Scan Photo/PDF</> : <><Upload className="h-3.5 w-3.5" /> Offline XML</>}
-                  </button>
-                ))}
-              </div>
-
-              {aadhaarMode === "xml" && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="su-xml" className={labelClass}>Aadhaar Offline eKYC XML</Label>
-                    <Input id="su-xml" type="file" accept=".xml"
-                      onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
-                      className={inputClass} />
-                    <p className="text-xs text-[#71717A]">
-                      Download from{" "}
-                      <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                        myaadhaar.uidai.gov.in
-                      </a>{" "}→ extract ZIP → upload .xml
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {aadhaarMode === "ocr" && (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                       <ShieldCheck className="h-4 w-4 text-blue-600" />
-                       <span className="text-[11px] font-black uppercase tracking-widest text-blue-700">Privacy First Verification</span>
-                    </div>
-                    <p className="text-[11px] text-blue-800/80 leading-relaxed font-medium">
-                      Download masked Aadhaar from: <a href="https://myaadhaar.uidai.gov.in/genricDownloadAadhaar/en" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold">UIDAI Portal</a>. 
-                      Crop the area where your **Name** and **Last 4 Digits** are visible (like the image below). 
-                      We do not collect sensitive data; this is solely for secure identity anchor.
-                    </p>
-                    <div className="rounded-lg border border-blue-200 overflow-hidden shadow-sm bg-white">
-                      <img src="/adhar.png" alt="How to crop Aadhaar" className="w-full h-auto" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="su-ocr" className={labelClass}>Aadhaar Card Image / PDF</Label>
-                    <Input id="su-ocr" type="file" accept="image/*,.pdf"
-                      onChange={e => { setAadhaarFile(e.target.files?.[0] || null); setAadhaarVerified(false); setAadhaarVerifiedName(null) }}
-                      className={inputClass} />
-                    <p className="text-xs text-[#71717A]">Upload a clear photo of the <strong>front</strong> of your Aadhaar card. We only read your <strong>name</strong> and <strong>last 4 digits</strong> — the full 12-digit number is never stored.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Verified identity confirmation card */}
-              {aadhaarVerified && aadhaarVerifiedName && (
-                <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-emerald-800">Identity Verified ✓</p>
-                    <p className="text-sm font-bold text-emerald-900">{aadhaarVerifiedName}</p>
-                    {aadhaarVerifiedNumber && <p className="text-[11px] text-emerald-700">XXXX-XXXX-{aadhaarVerifiedNumber.slice(-4)}</p>}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 mt-2">
-                <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2">
-                  <ChevronLeft className="h-4 w-4" /> Back
-                </button>
-                <button
-                  type="button"
-                  disabled={!aadhaarFile || isVerifyingAadhaar || !agreedToTerms}
-                  onClick={handleVerifyAadhaarStep}
-                  className="flex-1 bg-[#18181B] text-white font-semibold py-3.5 rounded-full hover:bg-[#27272A] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isVerifyingAadhaar
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</>
-                    : aadhaarVerified
-                      ? <>Verified ✓ — Continue <ChevronRight className="h-4 w-4" /></>
-                      : <>Verify & Continue <ChevronRight className="h-4 w-4" /></>}
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+              <AadhaarVerificationForm 
+                role={role}
+                committeeId={selectedCommitteeId}
+                onSuccess={handleAadhaarSuccess}
+                onSkip={handleAadhaarSkip}
+                showSkip={true}
+              />
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={goBack} className="flex-1 border border-[#E4E4E7] text-[#18181B] font-semibold py-3 rounded-xl hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-2 text-sm">
+                  <ChevronLeft className="h-4 w-4" /> Go Back
                 </button>
               </div>
             </div>
@@ -1020,6 +879,25 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
           {/* ── Account Step ── */}
           {step === stepIdx.account && !requiresProof && (
             <div className="space-y-4">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleGoogleSignUp}
+                className="w-full border border-[#E4E4E7] text-[#18181B] font-bold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-3 mb-2"
+              >
+                <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+                Continue with Google
+              </button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-[#E4E4E7]"></span>
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+                  <span className="bg-white px-2 text-[#A1A1AA]">Or use email & password</span>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="su-email" className={labelClass}>Email Address</Label>
                 <Input
@@ -1104,6 +982,7 @@ Use of Aadhaar for verification is voluntary. Providing Aadhaar on SafeHire is y
                   }
                 </button>
               </div>
+
             </div>
           )}
 

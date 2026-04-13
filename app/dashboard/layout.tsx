@@ -1,6 +1,7 @@
 import { getSupabaseServer } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
+import { VerificationPrompt } from "@/components/dashboard/verification-prompt"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = getSupabaseServer()
@@ -20,13 +21,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const role = profile?.role || "job_seeker"
 
   return (
-    <DashboardShell
-      role={role}
-      displayName={displayName}
-      safeHireId={profile?.safe_hire_id || null}
-      aadhaarVerified={!!profile?.aadhaar_verified}
-    >
-      {children}
-    </DashboardShell>
+    <>
+      <DashboardShell
+        role={role}
+        displayName={displayName}
+        safeHireId={profile?.safe_hire_id || null}
+        aadhaarVerified={!!profile?.aadhaar_verified}
+      >
+        {children}
+      </DashboardShell>
+      <VerificationPrompt profile={profile} />
+    </>
   )
 }

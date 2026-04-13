@@ -3,6 +3,7 @@ import { ShieldCheck, Trash2, ShieldAlert, Lock, Info } from "lucide-react"
 import { redirect } from "next/navigation"
 import { SettingsClient } from "./settings-client"
 import { CertificateNameSettings } from "../../../components/dashboard/CertificateNameSettings"
+import { VerificationSettingsCTA } from "@/components/dashboard/verification-cta"
 
 export default async function SettingsPage() {
   const supabase = getSupabaseServer()
@@ -76,10 +77,7 @@ export default async function SettingsPage() {
                 <SettingsClient />
               </div>
             ) : (
-              <div className="bg-[#F9F9FB] rounded-xl p-4 text-center border border-dashed border-[#E4E4E7]">
-                <p className="text-xs text-[#71717A] font-medium">You haven't verified your identity yet.</p>
-                <a href="/dashboard/job-seeker" className="text-xs font-bold text-[#18181B] underline mt-1 inline-block">Verify now to build trust</a>
-              </div>
+              <VerificationSettingsCTA role={profile?.role || "job_seeker"} />
             )}
           </div>
 

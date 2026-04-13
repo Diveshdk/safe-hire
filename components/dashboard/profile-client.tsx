@@ -105,9 +105,16 @@ export function ProfileClient({ profile, documents, stats, isOwner, currentUserI
                   <span className="text-blue-700 text-3xl font-extrabold">{initials}</span>
                 </div>
 
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h1 className="text-2xl font-black text-[#18181B] tracking-tight">{displayName}</h1>
-                  {profile.aadhaar_verified && <ShieldCheck className="h-5 w-5 text-blue-500 shrink-0" />}
+                  {profile.aadhaar_verified && (
+                    <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full shadow-sm">
+                      <div className="bg-blue-600 rounded-full p-0.5 flex items-center justify-center">
+                        <Check className="h-2.5 w-2.5 text-white stroke-[4]" />
+                      </div>
+                      <span className="text-[9px] font-black text-blue-700 uppercase tracking-wider">Aadhaar Verified</span>
+                    </div>
+                  )}
                 </div>
                 
                 {profile.committee_position && (
