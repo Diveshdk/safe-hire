@@ -63,6 +63,21 @@ export default function SignInPage() {
     setLoading(false)
   }
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true)
+    const supabase = getSupabaseBrowser()
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+      },
+    })
+    if (oauthError) {
+      setError(oauthError.message)
+      setLoading(false)
+    }
+  }
+
   async function handleForceSignOut() {
     const supabase = getSupabaseBrowser()
     await supabase.auth.signOut()
@@ -127,7 +142,26 @@ export default function SignInPage() {
           <h1 className="text-3xl font-bold text-[#18181B]">Sign In</h1>
           <p className="text-[#71717A] mt-2 text-sm">Enter your credentials to continue</p>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleGoogleSignIn}
+            className="w-full mt-8 border border-[#E4E4E7] text-[#18181B] font-bold py-3.5 rounded-full hover:bg-[#F4F4F6] transition-all flex items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+            Continue with Google
+          </button>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-[#E4E4E7]"></span>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+              <span className="bg-white px-2 text-[#A1A1AA]">Or use email & password</span>
+            </div>
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <Label htmlFor="si-email" className="text-sm font-medium text-[#18181B]">
                 Email Address

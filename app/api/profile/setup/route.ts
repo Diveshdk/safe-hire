@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabase/server"
 import { slugify } from "@/lib/utils/slugify"
-import { buildAadhaarKey, extractLast4 } from "@/lib/utils/crypto"
+import { buildAadhaarKey, extractLast4, generateSafeHireId } from "@/lib/utils/crypto"
 
 export async function POST(req: Request) {
   const supabase = getSupabaseServer()
@@ -31,10 +31,10 @@ export async function POST(req: Request) {
     certificate_name?: string;
   }
 
-  // Fetch existing profile to get current role if not provided
+  // Fetch existing profile to get current role and safe_hire_id if not provided
   const { data: existingProfile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, safe_hire_id, full_name")
     .eq("user_id", user.id)
     .maybeSingle()
 
@@ -104,7 +104,8 @@ export async function POST(req: Request) {
   const upsertData: any = { 
     user_id: user.id, 
     full_name: full_name ?? existingProfile?.full_name ?? null, 
-    role: finalRole 
+    role: finalRole,
+    safe_hire_id: existingProfile?.safe_hire_id || generateSafeHireId()
   }
 
   if (aadhaar_verified && aadhaar_full_name) {
@@ -153,7 +154,7 @@ export async function POST(req: Request) {
       provider: "signup_flow",
       status: "success",
       evidence_ref: last4 || null,   // Only last 4, never full number
-    }).throwOnError().then(() => {}).catch(() => {})
+    })
   }
 
   return NextResponse.json({ ok: true })

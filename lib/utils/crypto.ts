@@ -78,3 +78,16 @@ export function extractLast4(input: string): string {
   const digits = input.replace(/\D/g, "")
   return digits.slice(-4)
 }
+
+/**
+ * Generates a unique SafeHire ID in the format SH-XXXXXXXX
+ * where X are alphanumeric characters.
+ */
+export function generateSafeHireId(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // Removed ambiguous chars like 0, O, 1, I
+  let result = "SH-"
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}

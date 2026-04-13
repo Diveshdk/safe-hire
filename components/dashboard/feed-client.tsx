@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/dashboard/empty-state"
 import { FollowButton } from "@/components/dashboard/follow-button"
 import { ReportButton } from "@/components/dashboard/report-button"
+import { DeletePostButton } from "@/components/dashboard/delete-post-button"
 
 type FeedItem = {
   id: string
@@ -30,6 +31,8 @@ type FeedItem = {
   company_id?: string
   author_name?: string | null
   author_position?: string | null
+  auth_safe_id?: string | null
+  org_safe_id?: string | null
 }
 
 const CARD_PASTELS = [
@@ -274,7 +277,7 @@ function FeedCard({ item, pastelidx, currentUserId, onDelete }: { item: FeedItem
 
         {/* Post content */}
         {isPost && item.content && (
-          <p className="text-[#18181B] text-sm leading-relaxed whitespace-pre-wrap line-clamp-6">{item.content}</p>
+          <p className="text-[#18181B] text-sm leading-relaxed whitespace-pre-wrap">{item.content}</p>
         )}
 
         {/* Post image */}
@@ -283,7 +286,7 @@ function FeedCard({ item, pastelidx, currentUserId, onDelete }: { item: FeedItem
             <img
               src={item.image_url}
               alt="Post media"
-              className="w-full object-cover max-h-[400px]"
+              className="w-full object-cover max-h-[1000px]"
               loading="lazy"
             />
           </div>
