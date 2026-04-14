@@ -30,7 +30,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CertificateEditor } from "./certificate-editor"
-import { CertificateDesignConfig } from "./certificate-viewer"
+import { CertificateViewer, type CertificateDesignConfig } from "./certificate-viewer"
 import {
   Dialog,
   DialogContent,

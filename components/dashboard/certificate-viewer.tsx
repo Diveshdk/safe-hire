@@ -107,12 +107,12 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
       qr: "border-2 border-amber-800 p-1",
     },
     modern: {
-      container: "bg-white border-r-[32px] border-primary p-12 font-sans text-slate-800 relative overflow-hidden",
+      container: "bg-white border-r-[32px] border-[#0f172a] p-12 font-sans text-slate-800 relative overflow-hidden",
       header: "flex flex-col items-center mb-10 w-full",
       org: "text-2xl font-black uppercase tracking-tight text-slate-900 mb-1",
-      title: "text-5xl font-black uppercase tracking-tighter text-primary drop-shadow-md",
+      title: "text-5xl font-black uppercase tracking-tighter text-[#1e40af] drop-shadow-md",
       recipient: "text-4xl font-light text-slate-900 mb-4 tracking-tight",
-      accent: "text-primary",
+      accent: "text-[#1e40af]",
       qr: "rounded-lg border-4 border-white shadow-md",
     },
     premium: {
@@ -290,10 +290,10 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
       
       {/* SafeHire Branding */}
       <div className="absolute bottom-4 right-4 flex items-center gap-1.5 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-default">
-        <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+        <div className="w-4 h-4 bg-slate-900 rounded-full flex items-center justify-center">
           <div className="w-2 h-2 bg-white rounded-full" />
         </div>
-        <span className="text-[10px] font-bold tracking-tighter">SAFEHIRE VERIFIED</span>
+        <span className="text-[10px] font-bold tracking-tighter text-slate-900">SAFEHIRE VERIFIED</span>
       </div>
     </div>
   )
