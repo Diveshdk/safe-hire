@@ -109,7 +109,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
           </div>
         )}
       </div>
-      <div className="h-px w-full bg-muted-foreground mb-2" />
+      <div className="h-px w-full bg-muted-foreground mb-3" />
       <span className="font-bold text-sm uppercase tracking-wider">{sig.name}</span>
       <span className="text-xs text-muted-foreground">{sig.designation}</span>
     </div>
@@ -280,7 +280,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
         </div>
 
         {/* Bottom Section */}
-        <div className="flex items-end justify-between mt-auto pt-4 pb-12 shrink-0">
+        <div className="flex items-end justify-between mt-auto pt-6 pb-20 shrink-0">
           {/* QR Code & ID */}
           <div className="flex items-center gap-4">
             {verification_url ? (
