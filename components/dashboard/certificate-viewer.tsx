@@ -98,8 +98,11 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     <img key={index} src={url} alt={`Logo ${index + 1}`} className="h-16 w-auto object-contain mx-2" />
   )
 
-  const renderSignatory = (sig: Signatory, index: number) => (
-    <div key={index} className="flex flex-col items-center text-center px-4 min-w-[150px]">
+  const renderSignatory = (sig: Signatory, index: number, isDense: boolean = false) => (
+    <div key={index} className={cn(
+      "flex flex-col items-center text-center min-w-[140px]",
+      isDense ? "px-1" : "px-4"
+    )}>
       <div className="h-12 flex items-end mb-2">
         {sig.signature_url ? (
           <img src={sig.signature_url} alt={`Signature of ${sig.name}`} className="max-h-full w-auto" />
@@ -308,12 +311,13 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
 
           {/* Signatories */}
           <div className={cn(
-            "flex items-end gap-2 grow",
+            "flex items-end gap-1 grow",
             signatories.length === 1 ? "justify-center" : 
             signatories.length === 2 ? "justify-around px-8" : 
-            "justify-around"
+            signatories.length === 3 ? "justify-around" :
+            "justify-between" 
           )}>
-            {signatories.map((sig, idx) => renderSignatory(sig, idx))}
+            {signatories.map((sig, idx) => renderSignatory(sig, idx, signatories.length > 2))}
           </div>
         </div>
       </div>
