@@ -13,6 +13,7 @@ interface SendCertificateEmailParams {
   certificateLink: string
   certificateType: string
   orgName: string
+  pdfUrl?: string
 }
 
 export async function sendCertificateEmail({
@@ -22,14 +23,21 @@ export async function sendCertificateEmail({
   certificateLink,
   certificateType,
   orgName,
+  pdfUrl,
 }: SendCertificateEmailParams) {
   console.log(`[Email] Attempting to send certificate email to: ${to} from: ${FROM_EMAIL}`)
 
   try {
+    const attachments = pdfUrl ? [{
+      filename: `${eventName}_Certificate.pdf`,
+      path: pdfUrl
+    }] : []
+
     const { data, error } = await resend.emails.send({
       from: `SafeHire <${FROM_EMAIL}>`,
       to: [to],
       subject: `🎓 Your ${certificateType} Certificate — ${eventName}`,
+      attachments,
       html: `
         <!DOCTYPE html>
         <html>

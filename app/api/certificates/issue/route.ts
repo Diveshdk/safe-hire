@@ -177,7 +177,8 @@ export async function POST(req: Request) {
           eventName: event.title,
           certificateType: certificate_type === "winner" ? "Winner" : "Participation",
           orgName: finalOrgName,
-          certificateLink: `${process.env.NEXT_PUBLIC_APP_URL || ""}/verify/certificate/${verificationHash}`
+          certificateLink: `${process.env.NEXT_PUBLIC_APP_URL || ""}/verify/certificate/${verificationHash}`,
+          pdfUrl: recipient.pdf_url // Attach the generated PDF
         })
       }
 

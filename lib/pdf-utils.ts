@@ -79,11 +79,9 @@ export const generatePDF = async (
     const pageW = pdf.internal.pageSize.getWidth()   // 297
     const pageH = pdf.internal.pageSize.getHeight()  // 210
 
-    // canvas is at scale=2, so actual pixel dimensions are canvas.width/2 × canvas.height/2
     const imgW = canvas.width / 2
     const imgH = canvas.height / 2
 
-    // Fit image into page while preserving aspect ratio
     const ratio = Math.min(pageW / imgW, pageH / imgH)
     const finalW = imgW * ratio
     const finalH = imgH * ratio
@@ -91,6 +89,11 @@ export const generatePDF = async (
     const offsetY = (pageH - finalH) / 2
 
     pdf.addImage(imgData, "PNG", offsetX, offsetY, finalW, finalH)
+    
+    if (filename === "blob") {
+      return pdf.output("blob")
+    }
+    
     pdf.save(filename)
     return true
   } catch (error) {
