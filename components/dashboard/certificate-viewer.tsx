@@ -100,7 +100,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
 
   const renderSignatory = (sig: Signatory, index: number) => (
     <div key={index} className="flex flex-col items-center text-center px-4 min-w-[150px]">
-      <div className="h-20 flex items-end mb-2">
+      <div className="h-12 flex items-end mb-2">
         {sig.signature_url ? (
           <img src={sig.signature_url} alt={`Signature of ${sig.name}`} className="max-h-full w-auto" />
         ) : (
@@ -221,10 +221,9 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
       style={{ minHeight: `${707 * scale}px` }}
     >
       <div 
-        id="certificate-container"
         ref={containerRef}
         className={cn(
-          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left print:transform-none print:w-[297mm] print:h-[210mm]",
+          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left",
           style.container
         )}
         style={{ 

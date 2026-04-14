@@ -84,12 +84,6 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
                 width: 100%;
                 height: 100%;
               }
-              #certificate-container {
-                transform: none !important;
-                width: 297mm !important;
-                height: 210mm !important;
-                margin: 0 !important;
-              }
               /* Hide print UI chrome */
               @media print {
                 body { margin: 0; }
