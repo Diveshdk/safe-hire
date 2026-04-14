@@ -280,7 +280,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
         </div>
 
         {/* Bottom Section */}
-        <div className="flex items-end justify-between mt-auto pt-6 pb-20 shrink-0">
+        <div className="flex items-center justify-between mt-auto mb-16 pt-2 shrink-0">
           {/* QR Code & ID */}
           <div className="flex items-center gap-4">
             {verification_url ? (
