@@ -119,7 +119,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
   const templates = {
     classic: {
       container: "bg-white border-[12px] border-double border-amber-800 p-12 font-serif text-slate-900",
-      header: "flex flex-col items-center mb-8",
+      header: "flex flex-col items-center mb-4",
       org: "text-3xl font-black uppercase tracking-[0.2em] text-amber-900/90",
       title: "text-5xl font-bold uppercase tracking-tighter text-amber-900 drop-shadow-sm",
       recipient: "text-4xl font-bold border-b-2 border-amber-900/30 px-8 pb-1 inline-block italic",
@@ -128,7 +128,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     },
     modern: {
       container: "bg-white border-r-[32px] border-[#0f172a] p-12 font-sans text-slate-800 relative overflow-hidden",
-      header: "flex flex-col items-center mb-10 w-full",
+      header: "flex flex-col items-center mb-4 w-full",
       org: "text-2xl font-black uppercase tracking-tight text-slate-900 mb-1",
       title: "text-5xl font-black uppercase tracking-tighter text-[#1e40af] drop-shadow-md",
       recipient: "text-4xl font-light text-slate-900 mb-4 tracking-tight",
@@ -137,7 +137,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     },
     premium: {
       container: "bg-slate-950 border-[2px] border-amber-500/50 p-16 font-serif text-amber-50 relative",
-      header: "flex flex-col items-center mb-12",
+      header: "flex flex-col items-center mb-4",
       org: "text-3xl font-bold uppercase tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500",
       title: "text-7xl font-bold uppercase tracking-[0.1em] text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-amber-500/80 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]",
       recipient: "text-6xl font-black text-amber-100 underline decoration-amber-500/30 underline-offset-12 mb-4",
@@ -146,7 +146,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     },
     academic: {
       container: "bg-[#fefce8]/30 border-[4px] border-[#1a365d] p-16 font-serif text-slate-900 shadow-xl",
-      header: "flex flex-col items-center mb-12 pb-8 border-b-2 border-[#1a365d]/10 w-full",
+      header: "flex flex-col items-center mb-4 pb-4 border-b-2 border-[#1a365d]/10 w-full",
       org: "text-3xl font-bold uppercase tracking-widest text-[#1a365d]",
       title: "text-5xl font-bold uppercase text-[#1a365d] opacity-90",
       recipient: "text-5xl font-bold text-[#1a365d] bg-white/40 px-10 py-3 rounded-sm border border-[#1a365d]/5 shadow-inner",
@@ -162,7 +162,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     
     if (logo_count === 1) {
       return (
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-2">
           {renderLogo(displayLogos[0], 0)}
         </div>
       )
@@ -170,7 +170,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     
     if (logo_count === 2) {
       return (
-        <div className="flex justify-between items-center w-full grow mb-6 px-8">
+        <div className="flex justify-between items-center w-full grow mb-2 px-8">
           {renderLogo(displayLogos[0], 0)}
           {renderLogo(displayLogos[1], 1)}
         </div>
@@ -179,7 +179,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     
     if (logo_count === 3) {
       return (
-        <div className="flex justify-between items-center w-full grow mb-6 px-4">
+        <div className="flex justify-between items-center w-full grow mb-2 px-4">
           {renderLogo(displayLogos[0], 0)}
           {renderLogo(displayLogos[1], 1)}
           {renderLogo(displayLogos[2], 2)}
@@ -189,7 +189,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     
     // 4 logos (2x2 or spread)
     return (
-      <div className="grid grid-cols-4 gap-4 w-full mb-6 px-4 items-center">
+      <div className="grid grid-cols-4 gap-4 w-full mb-2 px-4 items-center">
         {displayLogos.map((url, i) => (
           <div key={i} className="flex justify-center">
              {renderLogo(url, i)}
@@ -238,7 +238,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
         <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-0" />
       )}
 
-      <div className="relative z-10 flex flex-col h-full gap-6">
+      <div className="relative z-10 flex flex-col h-full">
         {/* Header Section */}
         <div className={cn(style.header, "w-full flex flex-col items-center")}>
           {renderLogoGrid()}
@@ -253,7 +253,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
             {renderHeaderLines()}
           </div>
 
-          <h1 className={cn(style.title, "text-center w-full mt-6")}>
+          <h1 className={cn(style.title, "text-center w-full mt-2")}>
             {title || "Certificate"}
           </h1>
         </div>
@@ -274,13 +274,13 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
               as <span className={style.accent}>{recipient_rank}</span>
             </p>
           )}
-          <div className="max-w-2xl mx-auto mt-4">
+          <div className="max-w-2xl mx-auto mt-2">
             <p className="text-lg leading-relaxed whitespace-pre-wrap">{finalBodyContent}</p>
           </div>
         </div>
 
         {/* Bottom Section */}
-        <div className="flex items-end justify-between mt-auto pt-8 pb-10">
+        <div className="flex items-end justify-between mt-auto pt-4 pb-12 shrink-0">
           {/* QR Code & ID */}
           <div className="flex items-center gap-4">
             {verification_url ? (
@@ -308,9 +308,9 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
 
           {/* Signatories */}
           <div className={cn(
-            "flex items-end gap-4 grow",
+            "flex items-end gap-2 grow",
             signatories.length === 1 ? "justify-center" : 
-            signatories.length === 2 ? "justify-around px-12" : 
+            signatories.length === 2 ? "justify-around px-8" : 
             "justify-around"
           )}>
             {signatories.map((sig, idx) => renderSignatory(sig, idx))}
