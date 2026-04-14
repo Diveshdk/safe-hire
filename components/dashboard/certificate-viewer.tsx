@@ -99,8 +99,8 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
   )
 
   const renderSignatory = (sig: Signatory, index: number) => (
-    <div key={index} className="flex flex-col items-center text-center px-2 min-w-[120px]">
-      <div className="h-20 flex items-end mb-2">
+    <div key={index} className="flex flex-col items-center text-center px-4 min-w-[150px]">
+      <div className="h-12 flex items-end mb-2">
         {sig.signature_url ? (
           <img src={sig.signature_url} alt={`Signature of ${sig.name}`} className="max-h-full w-auto" />
         ) : (
@@ -110,8 +110,8 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
         )}
       </div>
       <div className="h-px w-full bg-muted-foreground mb-3" />
-      <span className="font-bold text-base uppercase tracking-wider">{sig.name}</span>
-      <span className="text-[10px] text-muted-foreground leading-tight">{sig.designation}</span>
+      <span className="font-bold text-sm uppercase tracking-wider">{sig.name}</span>
+      <span className="text-xs text-muted-foreground">{sig.designation}</span>
     </div>
   )
 
@@ -308,9 +308,9 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
 
           {/* Signatories */}
           <div className={cn(
-            "flex items-end gap-1 grow",
+            "flex items-end gap-2 grow",
             signatories.length === 1 ? "justify-center" : 
-            signatories.length === 2 ? "justify-around px-12" : 
+            signatories.length === 2 ? "justify-around px-8" : 
             "justify-around"
           )}>
             {signatories.map((sig, idx) => renderSignatory(sig, idx))}
