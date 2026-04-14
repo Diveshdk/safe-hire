@@ -162,7 +162,7 @@ export function CertificateEditor({ onSave, initialConfig }: CertificateEditorPr
   }
 
   const addSignatory = () => {
-    if (config.signatories.length < 3) {
+    if (config.signatories.length < 4) {
       updateConfig({ 
         signatories: [...config.signatories, { name: "", designation: "" }] 
       })
@@ -456,7 +456,7 @@ export function CertificateEditor({ onSave, initialConfig }: CertificateEditorPr
                   </div>
                 ))}
 
-                {config.signatories.length < 3 && (
+                {config.signatories.length < 4 && (
                   <Button variant="outline" className="w-full" onClick={addSignatory}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Signatory
