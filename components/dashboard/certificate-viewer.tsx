@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { QRCodeSVG } from "qrcode.react"
 import { cn } from "@/lib/utils"
 
@@ -71,6 +71,26 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
     signatories,
     verification_url,
   } = config
+
+  const [scale, setScale] = useState(1)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (wrapperRef.current) {
+        const parentWidth = wrapperRef.current.offsetWidth
+        if (parentWidth < 1000) {
+          setScale(parentWidth / 1000)
+        } else {
+          setScale(1)
+        }
+      }
+    }
+
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   const finalBodyContent = replaceVariables(body_template || purpose || "", config)
 
@@ -196,13 +216,23 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
 
   return (
     <div 
-      ref={containerRef}
-      className={cn(
-        "relative w-full shadow-2xl transition-all duration-500 select-none overflow-hidden",
-        style.container
-      )}
-      style={{ minWidth: "1000px", minHeight: "707px" }} // Proper A4 ratio for landscape
+      ref={wrapperRef}
+      className="w-full overflow-hidden flex justify-center items-start"
+      style={{ minHeight: `${707 * scale}px` }}
     >
+      <div 
+        ref={containerRef}
+        className={cn(
+          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left",
+          style.container
+        )}
+        style={{ 
+          width: "1000px", 
+          height: "707px",
+          transform: `scale(${scale})`,
+          flexShrink: 0
+        }} 
+      >
       {/* Background Accents for Modern */}
       {template_id === "modern" && (
         <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-0" />
@@ -250,7 +280,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
         </div>
 
         {/* Bottom Section */}
-        <div className="flex items-end justify-between mt-auto pt-8">
+        <div className="flex items-end justify-between mt-auto pt-8 pb-10">
           {/* QR Code & ID */}
           <div className="flex items-center gap-4">
             {verification_url ? (
@@ -278,10 +308,10 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
 
           {/* Signatories */}
           <div className={cn(
-            "flex items-end gap-12",
-            signatories.length === 1 ? "justify-center w-full" : 
-            signatories.length === 2 ? "justify-between w-full px-20" : 
-            "justify-between w-full"
+            "flex items-end gap-4 grow",
+            signatories.length === 1 ? "justify-center" : 
+            signatories.length === 2 ? "justify-around px-12" : 
+            "justify-around"
           )}>
             {signatories.map((sig, idx) => renderSignatory(sig, idx))}
           </div>
@@ -289,12 +319,13 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
       </div>
       
       {/* SafeHire Branding */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-1.5 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-default">
+      <div className="absolute bottom-6 right-8 flex items-center gap-1.5 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-default">
         <div className="w-4 h-4 bg-slate-900 rounded-full flex items-center justify-center">
           <div className="w-2 h-2 bg-white rounded-full" />
         </div>
         <span className="text-[10px] font-bold tracking-tighter text-slate-900">SAFEHIRE VERIFIED</span>
       </div>
     </div>
+  </div>
   )
 }

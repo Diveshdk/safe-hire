@@ -6,8 +6,30 @@ CREATE TABLE IF NOT EXISTS certificate_templates (
     organization_name TEXT,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(org_user_id, template_name)
 );
+
+-- Enable Row Level Security
+ALTER TABLE certificate_templates ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Users can view their own templates" 
+    ON certificate_templates FOR SELECT 
+    USING (auth.uid() = org_user_id);
+
+CREATE POLICY "Users can insert their own templates" 
+    ON certificate_templates FOR INSERT 
+    WITH CHECK (auth.uid() = org_user_id);
+
+CREATE POLICY "Users can update their own templates" 
+    ON certificate_templates FOR UPDATE 
+    USING (auth.uid() = org_user_id)
+    WITH CHECK (auth.uid() = org_user_id);
+
+CREATE POLICY "Users can delete their own templates" 
+    ON certificate_templates FOR DELETE 
+    USING (auth.uid() = org_user_id);
 
 -- Add updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()
