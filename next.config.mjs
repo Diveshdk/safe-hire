@@ -14,6 +14,9 @@ const nextConfig = {
     }
     return config
   },
+  experimental: {
+    serverComponentsExternalPackages: ["puppeteer-core"],
+  },
 }
 
 export default nextConfig

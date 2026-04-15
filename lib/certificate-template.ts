@@ -1,6 +1,22 @@
 import { CertificateDesignConfig } from "@/components/dashboard/certificate-viewer"
 import QRCode from "qrcode"
 
+async function fetchAsBase64(url: string): Promise<string> {
+  if (!url) return ""
+  if (url.startsWith("data:")) return url // Already base64
+  
+  try {
+    const response = await fetch(url)
+    const buffer = await response.arrayBuffer()
+    const contentType = response.headers.get("content-type") || "image/png"
+    const base64 = Buffer.from(buffer).toString("base64")
+    return `data:${contentType};base64,${base64}`
+  } catch (error) {
+    console.error(`[PDF/Base64] Failed to fetch image: ${url}`, error)
+    return url // Fallback to raw URL if fetch fails
+  }
+}
+
 export async function generateCertificateHtml(config: CertificateDesignConfig): Promise<string> {
   const {
     template_id = "classic",
@@ -21,18 +37,18 @@ export async function generateCertificateHtml(config: CertificateDesignConfig): 
     verification_url,
   } = config
 
-  // Generate QR Code Base64
-  let qrBase64 = ""
-  if (verification_url) {
-    qrBase64 = await QRCode.toDataURL(verification_url, {
-      margin: 1,
-      width: 150,
-      color: {
-        dark: "#000000",
-        light: "#ffffff",
-      },
-    })
-  }
+  // 1. Fetch all assets as Base64 in parallel for speed
+  const [qrBase64, ...logoBase64List] = await Promise.all([
+    verification_url ? QRCode.toDataURL(verification_url, { margin: 1, width: 150 }) : Promise.resolve(""),
+    ...logos.slice(0, logo_count).map(url => fetchAsBase64(url))
+  ])
+
+  const signatoryBase64List = await Promise.all(
+    signatories.map(async (sig) => ({
+      ...sig,
+      signature_base64: sig.signature_url ? await fetchAsBase64(sig.signature_url) : ""
+    }))
+  )
 
   // Replace variables in body
   const replaceVariables = (text: string) => {
@@ -84,23 +100,22 @@ export async function generateCertificateHtml(config: CertificateDesignConfig): 
 
   // Helper to render logos based on count
   let logoGridHtml = ""
-  const displayLogos = logos.slice(0, logo_count)
   
   if (logo_count === 1) {
     logoGridHtml = `
       <div style="display: flex; justify-content: center; margin-bottom: 8px;">
-        <img src="${displayLogos[0]}" style="height: 64px; width: auto; object-fit: contain;" />
+        <img src="${logoBase64List[0]}" style="height: 64px; width: auto; object-fit: contain;" />
       </div>`
   } else if (logo_count === 2) {
     logoGridHtml = `
       <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px; padding: 0 32px;">
-        <img src="${displayLogos[0]}" style="height: 64px; width: auto; object-fit: contain;" />
-        <img src="${displayLogos[1]}" style="height: 64px; width: auto; object-fit: contain;" />
+        <img src="${logoBase64List[0]}" style="height: 64px; width: auto; object-fit: contain;" />
+        <img src="${logoBase64List[1]}" style="height: 64px; width: auto; object-fit: contain;" />
       </div>`
   } else {
     logoGridHtml = `
       <div style="display: flex; justify-content: space-around; align-items: center; width: 100%; margin-bottom: 8px;">
-        ${displayLogos.map(url => `<img src="${url}" style="height: 64px; width: auto; object-fit: contain;" />`).join("")}
+        ${logoBase64List.map(url => `<img src="${url}" style="height: 64px; width: auto; object-fit: contain;" />`).join("")}
       </div>`
   }
 
@@ -108,10 +123,10 @@ export async function generateCertificateHtml(config: CertificateDesignConfig): 
     <p style="text-align: center; width: 100%; font-size: 1rem; font-style: italic; opacity: 0.7; margin: 2px 0;">${line}</p>
   `).join("")
 
-  const signatoriesHtml = signatories.map(sig => `
+  const signatoriesHtml = signatoryBase64List.map(sig => `
     <div style="display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 140px; margin: 0 16px;">
       <div style="height: 48px; display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: center;">
-        ${sig.signature_url ? `<img src="${sig.signature_url}" style="max-height: 100%; width: auto;" />` : `<div style="border-bottom: 1px solid #64748b; width: 100%; padding-bottom: 4px; font-style: italic; font-size: 0.875rem; opacity: 0.5;">Digital Signature</div>`}
+        ${sig.signature_base64 ? `<img src="${sig.signature_base64}" style="max-height: 100%; width: auto;" />` : `<div style="border-bottom: 1px solid #64748b; width: 100%; padding-bottom: 4px; font-style: italic; font-size: 0.875rem; opacity: 0.5;">Digital Signature</div>`}
       </div>
       <div style="height: 1px; width: 100%; background: #64748b; margin-bottom: 12px;"></div>
       <span style="font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">${sig.name}</span>
