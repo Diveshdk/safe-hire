@@ -224,9 +224,10 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
       style={{ minHeight: `${707 * scale}px` }}
     >
       <div 
+        id="certificate-export-container"
         ref={containerRef}
         className={cn(
-          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left",
+          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left print-container",
           style.container
         )}
         style={{ 

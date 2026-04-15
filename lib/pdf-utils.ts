@@ -52,43 +52,50 @@ export const generatePDF = async (
   filename: string = "certificate.pdf"
 ) => {
   try {
+    // 1. Create a canvas with high scale for high resolution
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 3, // Increased scale for retina-quality output
       useCORS: true,
       allowTaint: false,
       logging: false,
       backgroundColor: "#ffffff",
-      onclone: (clonedDoc) => {
+      // Important for centering: ensure the capture window matches design dimensions
+      width: 1000,
+      height: 707,
+      onclone: (clonedDoc, clonedElement) => {
         // Inject a <style> tag into the cloned document's <head>
         // This overrides all oklch-based CSS custom properties BEFORE html2canvas renders
         const style = clonedDoc.createElement("style")
         style.textContent = SAFE_CSS_VARS
         clonedDoc.head.appendChild(style)
+
+        // Force the cloned element to be exactly 1000x707 with no scaling or margins
+        // This ensures the canvas capture is pixel-perfect to our design
+        if (clonedElement instanceof HTMLElement) {
+           clonedElement.style.width = "1000px"
+           clonedElement.style.height = "707px"
+           clonedElement.style.transform = "none"
+           clonedElement.style.margin = "0"
+           clonedElement.style.padding = "0"
+        }
       },
     })
 
-    const imgData = canvas.toDataURL("image/png")
+    const imgData = canvas.toDataURL("image/png", 1.0)
 
     // A4 landscape: 297mm × 210mm
     const pdf = new jsPDF({
       orientation: "landscape",
       unit: "mm",
       format: "a4",
+      compress: true
     })
 
     const pageW = pdf.internal.pageSize.getWidth()   // 297
     const pageH = pdf.internal.pageSize.getHeight()  // 210
 
-    const imgW = canvas.width / 2
-    const imgH = canvas.height / 2
-
-    const ratio = Math.min(pageW / imgW, pageH / imgH)
-    const finalW = imgW * ratio
-    const finalH = imgH * ratio
-    const offsetX = (pageW - finalW) / 2
-    const offsetY = (pageH - finalH) / 2
-
-    pdf.addImage(imgData, "PNG", offsetX, offsetY, finalW, finalH)
+    // Fill the page entirely as our ratio 1000/707 matches A4 (sqrt(2))
+    pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH, undefined, 'FAST')
     
     if (filename === "blob") {
       return pdf.output("blob")
@@ -101,3 +108,4 @@ export const generatePDF = async (
     return false
   }
 }
+
