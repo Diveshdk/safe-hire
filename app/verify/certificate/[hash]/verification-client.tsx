@@ -81,6 +81,18 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
 
   return (
     <div className="max-w-6xl w-full mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col items-center text-center space-y-2 mb-8 verification-header">
+        <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg mb-4">
+          <div className="w-6 h-6 border-4 border-white rounded-full opacity-80" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
+          Secure Verification Receipt
+        </h1>
+        <p className="text-muted-foreground max-w-sm">
+          Official digital record of achievement issued through the SafeHire Trust Network.
+        </p>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Certificate Display */}
@@ -117,7 +129,7 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
         </div>
 
         {/* Verification Sidebar */}
-        <div className="w-full lg:w-80 space-y-4">
+        <div className="w-full lg:w-80 space-y-4 verification-sidebar">
           <Card className="border-green-500/20 bg-green-500/5 shadow-none overflow-hidden">
             <div className="h-1 bg-green-500/30" />
             <CardHeader className="pb-2">

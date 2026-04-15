@@ -192,7 +192,7 @@ html, body {
   }
 
   /* Hide common UI elements during print */
-  header, footer, nav, aside, button, .no-print, main > div:not(.print-container) {
+  header, footer, nav, aside, button, .no-print, [role="navigation"], [role="banner"], .verification-sidebar, .verification-header {
     display: none !important;
   }
 

@@ -52,9 +52,14 @@ export const generatePDF = async (
   filename: string = "certificate.pdf"
 ) => {
   try {
-    // 1. Create a canvas with high scale for high resolution
+    // 1. Ensure page is scrolled to top to avoid html2canvas offset issues
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0)
+    }
+
+    // 2. Create a canvas with high scale for high resolution
     const canvas = await html2canvas(element, {
-      scale: 3, // Increased scale for retina-quality output
+      scale: 2.5, // Balanced for high resolution and performance
       useCORS: true,
       allowTaint: false,
       logging: false,
@@ -77,9 +82,11 @@ export const generatePDF = async (
            clonedElement.style.transform = "none"
            clonedElement.style.margin = "0"
            clonedElement.style.padding = "0"
+           clonedElement.style.position = "static"
         }
       },
     })
+
 
     const imgData = canvas.toDataURL("image/png", 1.0)
 
