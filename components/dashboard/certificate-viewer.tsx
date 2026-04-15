@@ -3,6 +3,9 @@
 import React, { useEffect, useState, useRef } from "react"
 import { QRCodeSVG } from "qrcode.react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Download, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 export interface Signatory {
   name: string
@@ -73,7 +76,41 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
   } = config
 
   const [scale, setScale] = useState(1)
+  const [isDownloading, setIsDownloading] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const downloadHQPdf = async () => {
+    try {
+      setIsDownloading(true)
+      const response = await fetch("/api/certificates/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(config),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `certificate-${safe_hire_id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast.success("Certificate downloaded successfully!")
+    } catch (error) {
+      console.error("PDF download failed:", error)
+      toast.error("Failed to download high-quality certificate")
+    } finally {
+      setIsDownloading(false)
+    }
+  }
 
   useEffect(() => {
     const handleResize = () => {
@@ -220,9 +257,29 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
   return (
     <div 
       ref={wrapperRef}
-      className="w-full overflow-hidden flex justify-center items-start"
-      style={{ minHeight: `${707 * scale}px` }}
+      className="w-full overflow-hidden flex flex-col items-center gap-6"
+      style={{ minHeight: `${707 * scale + 100}px` }}
     >
+      <div className="flex justify-center w-full">
+        <Button 
+          variant="outline" 
+          size="lg" 
+          onClick={downloadHQPdf}
+          disabled={isDownloading}
+          className="group relative overflow-hidden bg-white/10 hover:bg-white/20 border-white/20 backdrop-blur-sm"
+        >
+          {isDownloading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+          )}
+          {isDownloading ? "Generating PDF..." : "Download High Quality PDF"}
+          <span className="ml-2 text-[10px] bg-primary/20 text-primary-foreground px-1.5 py-0.5 rounded-full border border-primary/20">
+            PRO
+          </span>
+        </Button>
+      </div>
+
       <div 
         ref={containerRef}
         className={cn(
