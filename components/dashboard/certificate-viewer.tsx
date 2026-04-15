@@ -272,11 +272,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
           )}>
             {recipient_name || "[RECIPIENT NAME]"}
           </h2>
-          {recipient_rank && (
-            <p className="text-xl font-medium tracking-wide">
-              as <span className={style.accent}>{recipient_rank}</span>
-            </p>
-          )}
+
           <div className="max-w-2xl mx-auto mt-2">
             <p className="text-lg leading-relaxed whitespace-pre-wrap">{finalBodyContent}</p>
           </div>

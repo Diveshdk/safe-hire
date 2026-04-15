@@ -62,7 +62,7 @@ export function CertificateEditor({ onSave, initialConfig }: CertificateEditorPr
     static_text: "This is to certify that",
     body_template: "Has secured {Position} in the {Event Name} held on {Date}.",
     recipient_name: "Jane Doe",
-    recipient_rank: "Top Achiever",
+    recipient_rank: "",
     recipient_name_style: { weight: "bold", underline: true, size: "4xl" },
     date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
     safe_hire_id: "SH-PREVIEW-001",
