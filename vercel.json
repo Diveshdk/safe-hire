@@ -1,11 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npm run build",
-  "functions": {
-    "app/api/certificates/generate/route.ts": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  }
+  "buildCommand": "npm run build"
 }
