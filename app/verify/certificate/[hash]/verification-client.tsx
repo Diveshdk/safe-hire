@@ -7,8 +7,6 @@ import { Download, ShieldCheck, Printer, Share2, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-import { generatePDF } from "@/lib/pdf-utils"
-
 interface VerificationClientProps {
   certificate: any
 }
@@ -41,26 +39,79 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
   }
 
   /**
-   * Generates a pixel-perfect PDF using the canvas-based utility.
+   * Opens a minimal print window containing only the certificate.
+   * The browser's native print → Save as PDF handles oklch and all modern CSS perfectly.
    */
   const handleDownload = async () => {
     if (!certificateRef.current) return
     setIsDownloading(true)
 
     try {
-      const filename = `certificate-${certificate.recipient_safe_hire_id || "safehire"}.pdf`
-      const success = await generatePDF(certificateRef.current, filename)
-      if (!success) {
-        alert("Failed to generate PDF. Please try again or use the Print option.")
+      const certHTML = certificateRef.current.outerHTML
+
+      // Collect all stylesheets from the current page so the print window has the same CSS
+      const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map((el) => el.outerHTML)
+        .join("\n")
+      const inlineStyles = Array.from(document.querySelectorAll("style"))
+        .map((el) => `<style>${el.innerHTML}</style>`)
+        .join("\n")
+
+      const printWindow = window.open("", "_blank", "width=1200,height=900")
+      if (!printWindow) {
+        alert("Please allow pop-ups to download the PDF, then try again.")
+        return
+      }
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Certificate – ${certificate.recipient_safe_hire_id}</title>
+            ${styleLinks}
+            ${inlineStyles}
+            <style>
+              @page { size: A4 landscape; margin: 0; }
+              html, body {
+                margin: 0; padding: 0;
+                width: 297mm; height: 210mm;
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              body > div {
+                width: 100%;
+                height: 100%;
+              }
+              /* Hide print UI chrome */
+              @media print {
+                body { margin: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            ${certHTML}
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
+
+      // Wait for fonts/images to load, then trigger print dialog
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.focus()
+          printWindow.print()
+          // Close the window after the print dialog is dismissed
+          printWindow.onafterprint = () => printWindow.close()
+        }, 800)
       }
     } catch (error) {
       console.error("Download failed:", error)
-      alert("An unexpected error occurred during PDF generation.")
     } finally {
       setIsDownloading(false)
     }
   }
-
 
   const handlePrint = () => {
     window.print()
@@ -81,18 +132,6 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
 
   return (
     <div className="max-w-6xl w-full mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col items-center text-center space-y-2 mb-8 verification-header">
-        <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg mb-4">
-          <div className="w-6 h-6 border-4 border-white rounded-full opacity-80" />
-        </div>
-        <h1 className="text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
-          Secure Verification Receipt
-        </h1>
-        <p className="text-muted-foreground max-w-sm">
-          Official digital record of achievement issued through the SafeHire Trust Network.
-        </p>
-      </div>
-
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Certificate Display */}
@@ -129,7 +168,7 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
         </div>
 
         {/* Verification Sidebar */}
-        <div className="w-full lg:w-80 space-y-4 verification-sidebar">
+        <div className="w-full lg:w-80 space-y-4">
           <Card className="border-green-500/20 bg-green-500/5 shadow-none overflow-hidden">
             <div className="h-1 bg-green-500/30" />
             <CardHeader className="pb-2">
