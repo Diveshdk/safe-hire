@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServer } from "@/lib/supabase/server"
+import { Client } from "@gradio/client"
 
 export async function POST(req: Request) {
   const supabase = getSupabaseServer()
@@ -49,28 +50,29 @@ export async function POST(req: Request) {
   const jobTitle = (app as any).jobs?.title || "the position"
   const jobDescription = (app as any).jobs?.description || ""
 
-  const prompt = `You are a professional career coach and HR expert. An applicant was rejected for the role of "${jobTitle}".
-
-Job Description: ${jobDescription.slice(0, 500)}
-
-The employer provided these 3 rejection reasons:
-1. ${reasons[0] || "N/A"}
-2. ${reasons[1] || "N/A"}
-3. ${reasons[2] || "N/A"}
-
-Based on these rejection reasons, provide a constructive, encouraging analysis report for the applicant. The report should:
-1. Acknowledge the feedback areas without being discouraging
-2. For each rejection reason, explain what the employer likely expected and how the applicant can improve
-3. Provide specific, actionable steps the applicant can take to strengthen their profile
-4. End with a motivational note
-
-Format the response in clear sections with headers. Keep it professional and supportive. Do NOT use markdown code blocks, just use plain text with clear formatting.`
-
   try {
-    // Use fetch to call Gemini API directly via the ai package's generateText
-    // Since the existing codebase uses generateText but may not have a provider configured,
-    // we'll use a simple approach that works without external API keys
-    const report = generateLocalReport(reasons, jobTitle)
+    // Initialize Hugging Face Client
+    const client = await Client.connect("girishwangikar/ResumeATS")
+    
+    // Craft a pseudo-resume text containing the rejection feedback
+    // This allows us to use the ATS agent to analyze why these specific areas were gaps
+    const pseudoResumeText = `REJECTION FEEDBACK FROM EMPLOYER:\n${reasons.map((r, i) => `${i+1}. ${r}`).join('\n')}\n\nPlease analyze these rejection reasons against the job description and provide professional advice to the applicant.`
+
+    // Call the analyze_resume endpoint
+    const result = await client.predict("/analyze_resume", { 		
+      resume_text: pseudoResumeText, 		
+      job_description: `Role: ${jobTitle}\n\nDescription: ${jobDescription}`, 		
+      with_job_description: true, 		
+      temperature: 0.7, 		
+      max_tokens: 1536, 
+    }) as any
+
+    let report = String(result.data?.[0] || "")
+    
+    // Fallback to local report if AI returned nothing or is too short
+    if (report.length < 100) {
+      report = generateLocalReport(reasons, jobTitle)
+    }
 
     // Save the report
     await supabase
@@ -80,7 +82,10 @@ Format the response in clear sections with headers. Keep it professional and sup
 
     return NextResponse.json({ ok: true, report })
   } catch (e: any) {
-    return NextResponse.json({ ok: false, message: e?.message || "AI analysis failed" }, { status: 500 })
+    console.error("HF Rejection Analysis Error:", e)
+    // Fallback to local report on error so the user still gets something
+    const fallbackReport = generateLocalReport(reasons, jobTitle)
+    return NextResponse.json({ ok: true, report: fallbackReport, isFallback: true })
   }
 }
 
