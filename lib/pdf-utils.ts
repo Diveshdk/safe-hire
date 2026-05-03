@@ -1,110 +1,184 @@
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
+// A4 landscape in pixels at 96dpi  →  1123 × 794
+const A4_W_PX = 1123
+const A4_H_PX = 794
 
 /**
- * Generates an A4-landscape PDF from an HTML element.
- * Optimized for high-resolution certificates with zero margins.
+ * Sanitize a cloned document: replace every oklch() call with a safe hex
+ * so html2canvas never crashes on modern Tailwind/ShadCN colour tokens.
+ */
+function sanitizeOklch(clonedDoc: Document) {
+  clonedDoc.querySelectorAll("style").forEach((tag) => {
+    if (tag.textContent?.includes("oklch")) {
+      tag.textContent = tag.textContent.replace(/oklch\([^)]+\)/g, "#000000")
+    }
+  })
+}
+
+/**
+ * Inject a <style> block that:
+ *   • Resets all known oklch CSS-variable aliases to safe hex values
+ *   • Locks the certificate-container to A4 landscape pixel dimensions
+ *   • Removes transforms, shadows, margins and border-radius
+ */
+function injectSafeStyles(clonedDoc: Document) {
+  const s = clonedDoc.createElement("style")
+  s.textContent = `
+    *, *::before, *::after { box-sizing: border-box !important; }
+
+    /* ── ShadCN / Tailwind 4 CSS variable reset ── */
+    :root {
+      --background: #ffffff;
+      --foreground: #0f172a;
+      --card: #ffffff;
+      --card-foreground: #0f172a;
+      --popover: #ffffff;
+      --popover-foreground: #0f172a;
+      --primary: #2563eb;
+      --primary-foreground: #ffffff;
+      --secondary: #f1f5f9;
+      --secondary-foreground: #0f172a;
+      --muted: #f1f5f9;
+      --muted-foreground: #64748b;
+      --accent: #f1f5f9;
+      --accent-foreground: #0f172a;
+      --destructive: #ef4444;
+      --destructive-foreground: #ffffff;
+      --border: #e2e8f0;
+      --input: #e2e8f0;
+      --ring: #2563eb;
+      --radius: 0.5rem;
+    }
+
+    /* ── Root reset ── */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: ${A4_W_PX}px !important;
+      height: ${A4_H_PX}px !important;
+      overflow: hidden !important;
+      background: white !important;
+    }
+
+    /* ── Certificate container: exact A4 landscape, flush to edges ── */
+    .certificate-container {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: ${A4_W_PX}px !important;
+      height: ${A4_H_PX}px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: none !important;
+      zoom: 1 !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      overflow: hidden !important;
+      display: block !important;
+    }
+
+    /* ── Kill any wrapper centering or viewport min-heights ── */
+    .certificate-wrapper, [class*="wrapper"] {
+      display: block !important;
+      min-height: 0 !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      justify-content: unset !important;
+      align-items: unset !important;
+    }
+
+    @media print {
+      @page { size: landscape; margin: 0; }
+      body { margin: 0; }
+      .certificate-container { page-break-after: avoid; }
+    }
+  `
+  clonedDoc.head.appendChild(s)
+}
+
+/**
+ * Generates a pixel-perfect A4-landscape PDF from any HTML element.
+ *
+ * Strategy:
+ *   1. Force the element to A4 landscape pixels (1123 × 794) before capture.
+ *   2. Capture with html2canvas at 2× for retina-quality output.
+ *   3. Create a jsPDF in pixel units sized exactly to A4 landscape.
+ *   4. Add the image at (0, 0) filling the entire page — zero margin.
  */
 export const generatePDF = async (
   element: HTMLElement,
   filename: string = "certificate.pdf"
-) => {
+): Promise<boolean | Blob> => {
   try {
-    // 1. Capture at high scale (3x) for crisp text/logos
+    // Temporarily override element dimensions so html2canvas captures A4 exactly
+    const originalWidth  = element.style.width
+    const originalHeight = element.style.height
+    const originalTransform = element.style.transform
+    const originalPosition  = element.style.position
+
+    element.style.width     = `${A4_W_PX}px`
+    element.style.height    = `${A4_H_PX}px`
+    element.style.transform = "none"
+    element.style.position  = "relative"
+
     const canvas = await html2canvas(element, {
-      scale: 3,
+      scale: 2,           // 2× → 2246 × 1588 pixel canvas, ultra-sharp
       useCORS: true,
       allowTaint: true,
       logging: false,
       backgroundColor: "#ffffff",
-      // Force exact dimensions to prevent responsive scaling issues
-      width: 1000,
-      height: 707,
-      onclone: (clonedDoc, clonedElement) => {
-        // 1. Sanitize all <style> tags in the cloned document to remove oklch() calls
-        // This is critical because html2canvas crashes on any oklch() function
-        const styleTags = Array.from(clonedDoc.querySelectorAll("style"))
-        styleTags.forEach((styleTag) => {
-          if (styleTag.textContent?.includes("oklch")) {
-            // Replace oklch with black or a neutral color to prevent parsing errors
-            styleTag.textContent = styleTag.textContent.replace(/oklch\([^)]+\)/g, "#000000")
-          }
-        })
+      width: A4_W_PX,
+      height: A4_H_PX,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (clonedDoc, clonedEl) => {
+        // Step 1: kill oklch() in all <style> tags
+        sanitizeOklch(clonedDoc)
+        // Step 2: inject safe variables + layout lock
+        injectSafeStyles(clonedDoc)
 
-        // 2. Remove all <link> tags that might point to oklch-heavy CSS (like Tailwind 4)
-        // and replace them with a simplified style if we're in the clone.
-        // NOTE: This might strip some styles, but it's better than a crash.
-        // We rely on the inline styles we inject below for core layout.
-        
-        // 3. Inject safe CSS variables for all common Tailwind/Shadcn UI properties
-        const style = clonedDoc.createElement("style")
-        style.textContent = `
-          :root, * {
-            --background: 0 0% 100% !important;
-            --foreground: 222.2 84% 4.9% !important;
-            --card: 0 0% 100% !important;
-            --card-foreground: 222.2 84% 4.9% !important;
-            --popover: 0 0% 100% !important;
-            --popover-foreground: 222.2 84% 4.9% !important;
-            --primary: 221.2 83.2% 53.3% !important;
-            --primary-foreground: 210 40% 98% !important;
-            --secondary: 210 40% 96.1% !important;
-            --secondary-foreground: 222.2 47.4% 11.2% !important;
-            --muted: 210 40% 96.1% !important;
-            --muted-foreground: 215.4 16.3% 46.9% !important;
-            --accent: 210 40% 96.1% !important;
-            --accent-foreground: 222.2 47.4% 11.2% !important;
-            --destructive: 0 84.2% 60.2% !important;
-            --destructive-foreground: 210 40% 98% !important;
-            --border: 214.3 31.8% 91.4% !important;
-            --input: 214.3 31.8% 91.4% !important;
-            --ring: 221.2 83.2% 53.3% !important;
-            
-            /* Fallbacks for Tailwind 4 specific vars if any */
-            --color-background: white !important;
-            --color-foreground: black !important;
-          }
-          
-          /* Remove shadows and transforms that interfere with capture */
-          .certificate-container { 
-            transform: none !important; 
-            box-shadow: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-        `
-        clonedDoc.head.appendChild(style)
-        
-        // Ensure the cloned element itself has no transform or shadow
-        const target = clonedElement as HTMLElement
-        target.style.transform = "none"
-        target.style.boxShadow = "none"
-        target.style.margin = "0"
-        target.style.position = "relative"
-        target.style.display = "block"
+        // Step 3: force the specific cloned element to exact A4 size
+        const el = clonedEl as HTMLElement
+        el.style.width     = `${A4_W_PX}px`
+        el.style.height    = `${A4_H_PX}px`
+        el.style.transform = "none"
+        el.style.margin    = "0"
+        el.style.padding   = "0"
+        el.style.boxShadow = "none"
+        el.style.position  = "absolute"
+        el.style.top       = "0"
+        el.style.left      = "0"
+        el.style.display   = "block"
       },
     })
 
+    // Restore original element styles
+    element.style.width     = originalWidth
+    element.style.height    = originalHeight
+    element.style.transform = originalTransform
+    element.style.position  = originalPosition
+
     const imgData = canvas.toDataURL("image/png", 1.0)
 
-    // 2. Setup A4 landscape PDF (297mm x 210mm)
+    // Use pixel units so the PDF page is EXACTLY 1123 × 794 px
     const pdf = new jsPDF({
       orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-      compress: true
+      unit: "px",
+      format: [A4_W_PX, A4_H_PX],
+      hotfixes: ["px_scaling"],
+      compress: true,
     })
 
-    // 3. Fill the entire page (0 margin)
-    // A4 Landscape: 297 x 210
-    pdf.addImage(imgData, "PNG", 0, 0, 297, 210, undefined, 'FAST')
-    
+    // Add image at (0, 0) spanning the full page — zero margin
+    pdf.addImage(imgData, "PNG", 0, 0, A4_W_PX, A4_H_PX, undefined, "FAST")
+
     if (filename === "blob") {
       return pdf.output("blob")
     }
-    
+
     pdf.save(filename)
     return true
   } catch (error) {
