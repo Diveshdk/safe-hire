@@ -3,8 +3,8 @@
 import React, { useRef, useState } from "react"
 import { CertificateViewer, CertificateDesignConfig } from "@/components/dashboard/certificate-viewer"
 import { Button } from "@/components/ui/button"
-import { Download, ShieldCheck, Printer, Share2, Loader2 } from "lucide-react"
-import { generatePDF } from "@/lib/pdf-utils"
+import { Download, ShieldCheck, Printer, Share2, Loader2, ImageDown } from "lucide-react"
+import { generatePDF, generateImage } from "@/lib/pdf-utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
@@ -15,6 +15,7 @@ interface VerificationClientProps {
 export function VerificationClient({ certificate }: VerificationClientProps) {
   const certificateRef = useRef<HTMLDivElement>(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false)
   
   // Build the verification URL from the hash (safe for SSR)
   const verificationUrl = typeof window !== "undefined"
@@ -75,6 +76,24 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
     }
   }
 
+  /**
+   * Captures the certificate as a high-resolution PNG and triggers a direct download.
+   */
+  const handleDownloadImage = async () => {
+    if (!certificateRef.current) return
+    setIsDownloadingImage(true)
+    try {
+      const fileName = `Certificate_${certificate.recipient_safe_hire_id || "SafeHire"}.png`
+      const result = await generateImage(certificateRef.current, fileName)
+      if (!result) throw new Error("generateImage returned false")
+    } catch (error) {
+      console.error("Image download failed:", error)
+      alert("Could not generate image. Please try again.")
+    } finally {
+      setIsDownloadingImage(false)
+    }
+  }
+
   return (
     <div className="max-w-6xl w-full mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -99,15 +118,29 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
               ) : (
                 <Download className="h-5 w-5 mr-2" />
               )}
-              {isDownloading ? "Preparing PDF…" : "Download Official PDF"}
+              {isDownloading ? "Preparing PDF…" : "Download PDF"}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={handleDownloadImage}
+              disabled={isDownloadingImage}
+              className="shadow-sm hover:shadow-md transition-shadow"
+            >
+              {isDownloadingImage ? (
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              ) : (
+                <ImageDown className="h-5 w-5 mr-2" />
+              )}
+              {isDownloadingImage ? "Saving Image…" : "Download as Image"}
             </Button>
             <Button size="lg" variant="outline" onClick={handlePrint}>
               <Printer className="h-5 w-5 mr-2" />
-              Print Certificate
+              Print
             </Button>
             <Button size="lg" variant="ghost" onClick={handleShare}>
               <Share2 className="h-5 w-5 mr-2" />
-              Share Verification Link
+              Share
             </Button>
           </div>
         </div>

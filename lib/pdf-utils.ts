@@ -186,3 +186,72 @@ export const generatePDF = async (
     return false
   }
 }
+
+/**
+ * Captures the certificate element as a high-resolution PNG and triggers a download.
+ * Uses the same oklch sanitization and A4-pixel-lock as generatePDF.
+ *
+ * @param element  The certificate HTML element (same ref used for PDF)
+ * @param filename Output filename, e.g. "Certificate_JS221892.png"
+ */
+export const generateImage = async (
+  element: HTMLElement,
+  filename: string = "certificate.png"
+): Promise<boolean> => {
+  try {
+    const originalWidth     = element.style.width
+    const originalHeight    = element.style.height
+    const originalTransform = element.style.transform
+    const originalPosition  = element.style.position
+
+    element.style.width     = `${A4_W_PX}px`
+    element.style.height    = `${A4_H_PX}px`
+    element.style.transform = "none"
+    element.style.position  = "relative"
+
+    const canvas = await html2canvas(element, {
+      scale: 3,            // 3× → ~3369 × 2382 px — high enough for sharp prints
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      width: A4_W_PX,
+      height: A4_H_PX,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (clonedDoc, clonedEl) => {
+        sanitizeOklch(clonedDoc)
+        injectSafeStyles(clonedDoc)
+
+        const el = clonedEl as HTMLElement
+        el.style.width     = `${A4_W_PX}px`
+        el.style.height    = `${A4_H_PX}px`
+        el.style.transform = "none"
+        el.style.margin    = "0"
+        el.style.padding   = "0"
+        el.style.boxShadow = "none"
+        el.style.position  = "absolute"
+        el.style.top       = "0"
+        el.style.left      = "0"
+        el.style.display   = "block"
+      },
+    })
+
+    // Restore
+    element.style.width     = originalWidth
+    element.style.height    = originalHeight
+    element.style.transform = originalTransform
+    element.style.position  = originalPosition
+
+    // Trigger browser download
+    const link = document.createElement("a")
+    link.download = filename
+    link.href = canvas.toDataURL("image/png", 1.0)
+    link.click()
+
+    return true
+  } catch (error) {
+    console.error("Image generation failed:", error)
+    return false
+  }
+}
