@@ -5,35 +5,33 @@ import jsPDF from "jspdf"
 const A4_W_PX = 1123
 const A4_H_PX = 794
 
-/**
- * Generates a pixel-perfect A4-landscape PDF from an HTML element.
- * Uses html-to-image which supports modern CSS like oklch().
- */
+// The certificate is designed at 1000x707px
+const CERT_W = 1000
+const CERT_H = 707
+
 export const generatePDF = async (
   element: HTMLElement,
   filename: string = "certificate.pdf"
 ): Promise<boolean | Blob> => {
   try {
-    // Capture at high scale and force exact dimensions to remove gaps
+    // Capture at the certificate's native design size to avoid gaps
     const dataUrl = await toPng(element, {
-      pixelRatio: 2,
-      width: A4_W_PX,
-      height: A4_H_PX,
+      pixelRatio: 3, // High-res capture
+      width: CERT_W,
+      height: CERT_H,
       backgroundColor: "#ffffff",
       style: {
         transform: "none",
-        width: `${A4_W_PX}px`,
-        height: `${A4_H_PX}px`,
+        width: `${CERT_W}px`,
+        height: `${CERT_H}px`,
         margin: "0",
-        padding: "0",
+        // Do NOT override padding here as it's part of the certificate design (e.g. p-12)
         boxShadow: "none",
         borderRadius: "0",
-        top: "0",
-        left: "0",
-        position: "relative",
       }
     })
 
+    // Setup PDF at A4 dimensions
     const pdf = new jsPDF({
       orientation: "landscape",
       unit: "px",
@@ -42,6 +40,7 @@ export const generatePDF = async (
       compress: true,
     })
 
+    // Scale the 1000x707 image to fill the 1123x794 page exactly
     pdf.addImage(dataUrl, "PNG", 0, 0, A4_W_PX, A4_H_PX, undefined, "FAST")
 
     if (filename === "blob") {
@@ -62,21 +61,17 @@ export const generateImage = async (
 ): Promise<boolean> => {
   try {
     const dataUrl = await toPng(element, {
-      pixelRatio: 3,
-      width: A4_W_PX,
-      height: A4_H_PX,
+      pixelRatio: 4, // Extra sharp for image downloads
+      width: CERT_W,
+      height: CERT_H,
       backgroundColor: "#ffffff",
       style: {
         transform: "none",
-        width: `${A4_W_PX}px`,
-        height: `${A4_H_PX}px`,
+        width: `${CERT_W}px`,
+        height: `${CERT_H}px`,
         margin: "0",
-        padding: "0",
         boxShadow: "none",
         borderRadius: "0",
-        top: "0",
-        left: "0",
-        position: "relative",
       }
     })
 
