@@ -14,7 +14,7 @@ export const generatePDF = async (
   filename: string = "certificate.pdf"
 ): Promise<boolean | Blob> => {
   try {
-    // 1. Capture the element as a high-res PNG (2x scale)
+    // Capture at high scale and force exact dimensions to remove gaps
     const dataUrl = await toPng(element, {
       pixelRatio: 2,
       width: A4_W_PX,
@@ -22,14 +22,18 @@ export const generatePDF = async (
       backgroundColor: "#ffffff",
       style: {
         transform: "none",
+        width: `${A4_W_PX}px`,
+        height: `${A4_H_PX}px`,
         margin: "0",
         padding: "0",
         boxShadow: "none",
         borderRadius: "0",
+        top: "0",
+        left: "0",
+        position: "relative",
       }
     })
 
-    // 2. Create jsPDF in pixel units
     const pdf = new jsPDF({
       orientation: "landscape",
       unit: "px",
@@ -38,7 +42,6 @@ export const generatePDF = async (
       compress: true,
     })
 
-    // 3. Add image filling the entire page
     pdf.addImage(dataUrl, "PNG", 0, 0, A4_W_PX, A4_H_PX, undefined, "FAST")
 
     if (filename === "blob") {
@@ -53,16 +56,11 @@ export const generatePDF = async (
   }
 }
 
-/**
- * Captures the certificate as a high-resolution PNG and triggers a download.
- * Uses html-to-image for native browser support of modern CSS (oklch, etc).
- */
 export const generateImage = async (
   element: HTMLElement,
   filename: string = "certificate.png"
 ): Promise<boolean> => {
   try {
-    // Capture at 3x for ultra-sharp output
     const dataUrl = await toPng(element, {
       pixelRatio: 3,
       width: A4_W_PX,
@@ -70,14 +68,18 @@ export const generateImage = async (
       backgroundColor: "#ffffff",
       style: {
         transform: "none",
+        width: `${A4_W_PX}px`,
+        height: `${A4_H_PX}px`,
         margin: "0",
         padding: "0",
         boxShadow: "none",
         borderRadius: "0",
+        top: "0",
+        left: "0",
+        position: "relative",
       }
     })
 
-    // Trigger download
     const link = document.createElement("a")
     link.download = filename
     link.href = dataUrl
