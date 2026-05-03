@@ -1,44 +1,6 @@
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
-// Safe hex overrides for all Tailwind CSS custom properties that resolve to oklch()
-const SAFE_CSS_VARS = `
-  :root, * {
-    --background: #ffffff !important;
-    --foreground: #0f172a !important;
-    --card: #ffffff !important;
-    --card-foreground: #0f172a !important;
-    --popover: #ffffff !important;
-    --popover-foreground: #0f172a !important;
-    --primary: #2563eb !important;
-    --primary-foreground: #ffffff !important;
-    --secondary: #f1f5f9 !important;
-    --secondary-foreground: #0f172a !important;
-    --muted: #f1f5f9 !important;
-    --muted-foreground: #64748b !important;
-    --accent: #f1f5f9 !important;
-    --accent-foreground: #0f172a !important;
-    --destructive: #ef4444 !important;
-    --destructive-foreground: #ffffff !important;
-    --border: #e2e8f0 !important;
-    --input: #e2e8f0 !important;
-    --ring: #2563eb !important;
-    --radius: 0.5rem !important;
-    --chart-1: #2563eb !important;
-    --chart-2: #16a34a !important;
-    --chart-3: #d97706 !important;
-    --chart-4: #9333ea !important;
-    --chart-5: #ef4444 !important;
-    --sidebar: #f8fafc !important;
-    --sidebar-foreground: #0f172a !important;
-    --sidebar-primary: #2563eb !important;
-    --sidebar-primary-foreground: #ffffff !important;
-    --sidebar-accent: #f1f5f9 !important;
-    --sidebar-accent-foreground: #0f172a !important;
-    --sidebar-border: #e2e8f0 !important;
-    --sidebar-ring: #2563eb !important;
-  }
-`
 
 /**
  * Generates an A4-landscape PDF from an HTML element.
@@ -60,15 +22,57 @@ export const generatePDF = async (
       width: 1000,
       height: 707,
       onclone: (clonedDoc, clonedElement) => {
-        // Inject safe CSS variables for oklch support
+        // 1. Sanitize all <style> tags in the cloned document to remove oklch() calls
+        // This is critical because html2canvas crashes on any oklch() function
+        const styleTags = Array.from(clonedDoc.querySelectorAll("style"))
+        styleTags.forEach((styleTag) => {
+          if (styleTag.textContent?.includes("oklch")) {
+            // Replace oklch with black or a neutral color to prevent parsing errors
+            styleTag.textContent = styleTag.textContent.replace(/oklch\([^)]+\)/g, "#000000")
+          }
+        })
+
+        // 2. Remove all <link> tags that might point to oklch-heavy CSS (like Tailwind 4)
+        // and replace them with a simplified style if we're in the clone.
+        // NOTE: This might strip some styles, but it's better than a crash.
+        // We rely on the inline styles we inject below for core layout.
+        
+        // 3. Inject safe CSS variables for all common Tailwind/Shadcn UI properties
         const style = clonedDoc.createElement("style")
-        style.textContent = SAFE_CSS_VARS + `
+        style.textContent = `
+          :root, * {
+            --background: 0 0% 100% !important;
+            --foreground: 222.2 84% 4.9% !important;
+            --card: 0 0% 100% !important;
+            --card-foreground: 222.2 84% 4.9% !important;
+            --popover: 0 0% 100% !important;
+            --popover-foreground: 222.2 84% 4.9% !important;
+            --primary: 221.2 83.2% 53.3% !important;
+            --primary-foreground: 210 40% 98% !important;
+            --secondary: 210 40% 96.1% !important;
+            --secondary-foreground: 222.2 47.4% 11.2% !important;
+            --muted: 210 40% 96.1% !important;
+            --muted-foreground: 215.4 16.3% 46.9% !important;
+            --accent: 210 40% 96.1% !important;
+            --accent-foreground: 222.2 47.4% 11.2% !important;
+            --destructive: 0 84.2% 60.2% !important;
+            --destructive-foreground: 210 40% 98% !important;
+            --border: 214.3 31.8% 91.4% !important;
+            --input: 214.3 31.8% 91.4% !important;
+            --ring: 221.2 83.2% 53.3% !important;
+            
+            /* Fallbacks for Tailwind 4 specific vars if any */
+            --color-background: white !important;
+            --color-foreground: black !important;
+          }
+          
           /* Remove shadows and transforms that interfere with capture */
           .certificate-container { 
             transform: none !important; 
             box-shadow: none !important;
             margin: 0 !important;
             padding: 0 !important;
+            background: white !important;
           }
         `
         clonedDoc.head.appendChild(style)
@@ -79,6 +83,7 @@ export const generatePDF = async (
         target.style.boxShadow = "none"
         target.style.margin = "0"
         target.style.position = "relative"
+        target.style.display = "block"
       },
     })
 

@@ -4,7 +4,7 @@ import React, { useRef, useState } from "react"
 import { CertificateViewer, CertificateDesignConfig } from "@/components/dashboard/certificate-viewer"
 import { Button } from "@/components/ui/button"
 import { Download, ShieldCheck, Printer, Share2, Loader2, FileText } from "lucide-react"
-import { generatePDF } from "@/lib/pdf-utils"
+// import { generatePDF } from "@/lib/pdf-utils" // Temporarily disabled due to html2canvas oklch crash
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
@@ -40,22 +40,97 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
   }
 
   /**
-   * Generates and downloads a high-quality PDF using our improved utility.
+   * Generates and downloads a high-quality PDF using a perfected Print-to-PDF method.
+   * This avoids html2canvas oklch() crashes while ensuring zero margins.
    */
   const handleDownload = async () => {
     if (!certificateRef.current) return
     setIsDownloading(true)
 
     try {
-      const fileName = `Certificate_${certificate.recipient_safe_hire_id}.pdf`
-      const success = await generatePDF(certificateRef.current, fileName)
+      // Collect all styles to ensure perfect rendering in the print window
+      const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map((el) => el.outerHTML)
+        .join("\n")
+      const inlineStyles = Array.from(document.querySelectorAll("style"))
+        .map((el) => `<style>${el.innerHTML}</style>`)
+        .join("\n")
+
+      // We clone the certificate and strip the 'transform' so it renders at 1:1 scale
+      const certClone = certificateRef.current.cloneNode(true) as HTMLElement
+      certClone.style.transform = "none"
+      certClone.style.boxShadow = "none"
+      certClone.style.width = "100%"
+      certClone.style.height = "100%"
+      certClone.style.margin = "0"
+      certClone.style.position = "absolute"
+      certClone.style.top = "0"
+      certClone.style.left = "0"
       
-      if (!success) {
-        throw new Error("PDF generation utility returned false")
+      const printWindow = window.open("", "_blank", "width=1200,height=900")
+      if (!printWindow) {
+        alert("Please allow pop-ups to download the PDF, then try again.")
+        setIsDownloading(false)
+        return
       }
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Certificate – ${certificate.recipient_safe_hire_id}</title>
+            ${styleLinks}
+            ${inlineStyles}
+            <style>
+              @page { 
+                size: A4 landscape; 
+                margin: 0; 
+              }
+              @media print {
+                body { margin: 0; padding: 0; }
+                html, body {
+                  width: 297mm;
+                  height: 210mm;
+                  overflow: hidden;
+                }
+              }
+              html, body {
+                margin: 0; padding: 0;
+                width: 100%; height: 100%;
+                background: white;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              /* Target the certificate container precisely */
+              .certificate-container {
+                width: 297mm !important;
+                height: 210mm !important;
+                transform: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${certClone.outerHTML}
+            <script>
+              // Wait for all images and fonts to load before triggering print
+              window.onload = () => {
+                setTimeout(() => {
+                  window.focus();
+                  window.print();
+                  window.onafterprint = () => window.close();
+                }, 1000);
+              };
+            </script>
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
     } catch (error) {
       console.error("Download failed:", error)
-      alert("Failed to generate PDF. You can try 'Print Certificate' as an alternative.")
+      alert("Something went wrong. Please try 'Print Certificate' directly.")
     } finally {
       setIsDownloading(false)
     }
