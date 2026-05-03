@@ -10,9 +10,37 @@ const A4_H_PX = 794
  * so html2canvas never crashes on modern Tailwind/ShadCN colour tokens.
  */
 function sanitizeOklch(clonedDoc: Document) {
+  // 1. Sanitize all <style> tags
   clonedDoc.querySelectorAll("style").forEach((tag) => {
-    if (tag.textContent?.includes("oklch")) {
-      tag.textContent = tag.textContent.replace(/oklch\([^)]+\)/g, "#000000")
+    try {
+      if (tag.textContent?.includes("oklch")) {
+        // Replace oklch(...) with a safe hex to stop html2canvas parser from crashing
+        tag.textContent = tag.textContent.replace(/oklch\([^)]+\)/g, "#000000")
+      }
+    } catch (e) {
+       console.warn("Style tag sanitization failed", e)
+    }
+  })
+
+  // 2. Aggressively remove any link tags that we can't sanitize but might contain oklch
+  // This is a last resort to prevent the crash. We hope the injected styles below cover the basics.
+  clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+    try {
+      // If we can't access it, it might have oklch and crash html2canvas
+      // We'll keep it for now but if crashes persist, we might need to disable it
+      const sheet = (link as HTMLLinkElement).sheet
+      if (sheet) {
+         for (let i = sheet.cssRules.length - 1; i >= 0; i--) {
+           if (sheet.cssRules[i].cssText.includes("oklch")) {
+             (sheet as CSSStyleSheet).deleteRule(i)
+           }
+         }
+      }
+    } catch (e) {
+      // Cross-origin CSS often contains oklch in Tailwind 4.
+      // If we can't sanitize it, html2canvas WILL crash.
+      // So we disable the link tag and rely on our own injected styles.
+      link.setAttribute("media", "only x") // Disable it
     }
   })
 }
@@ -26,30 +54,35 @@ function sanitizeOklch(clonedDoc: Document) {
 function injectSafeStyles(clonedDoc: Document) {
   const s = clonedDoc.createElement("style")
   s.textContent = `
-    *, *::before, *::after { box-sizing: border-box !important; }
-
-    /* ── ShadCN / Tailwind 4 CSS variable reset ── */
-    :root {
-      --background: #ffffff;
-      --foreground: #0f172a;
-      --card: #ffffff;
-      --card-foreground: #0f172a;
-      --popover: #ffffff;
-      --popover-foreground: #0f172a;
-      --primary: #2563eb;
-      --primary-foreground: #ffffff;
-      --secondary: #f1f5f9;
-      --secondary-foreground: #0f172a;
-      --muted: #f1f5f9;
-      --muted-foreground: #64748b;
-      --accent: #f1f5f9;
-      --accent-foreground: #0f172a;
-      --destructive: #ef4444;
-      --destructive-foreground: #ffffff;
-      --border: #e2e8f0;
-      --input: #e2e8f0;
-      --ring: #2563eb;
-      --radius: 0.5rem;
+    /* ── Aggressive Reset ── */
+    *, *::before, *::after { 
+      box-sizing: border-box !important; 
+      --background: #ffffff !important;
+      --foreground: #0f172a !important;
+      --card: #ffffff !important;
+      --card-foreground: #0f172a !important;
+      --popover: #ffffff !important;
+      --popover-foreground: #0f172a !important;
+      --primary: #2563eb !important;
+      --primary-foreground: #ffffff !important;
+      --secondary: #f1f5f9 !important;
+      --secondary-foreground: #0f172a !important;
+      --muted: #f1f5f9 !important;
+      --muted-foreground: #64748b !important;
+      --accent: #f1f5f9 !important;
+      --accent-foreground: #0f172a !important;
+      --destructive: #ef4444 !important;
+      --destructive-foreground: #ffffff !important;
+      --border: #e2e8f0 !important;
+      --input: #e2e8f0 !important;
+      --ring: #2563eb !important;
+      --radius: 0.5rem !important;
+      
+      /* Tailwind 4 specific fallback variables */
+      --color-primary: #2563eb !important;
+      --color-secondary: #f1f5f9 !important;
+      --color-background: #ffffff !important;
+      --color-foreground: #0f172a !important;
     }
 
     /* ── Root reset ── */
