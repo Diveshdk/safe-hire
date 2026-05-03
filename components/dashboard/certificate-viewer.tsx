@@ -226,7 +226,7 @@ export function CertificateViewer({ config, containerRef }: CertificateViewerPro
       <div 
         ref={containerRef}
         className={cn(
-          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left",
+          "relative shadow-2xl transition-all duration-500 select-none overflow-hidden origin-top-left certificate-container",
           style.container
         )}
         style={{ 

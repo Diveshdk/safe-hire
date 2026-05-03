@@ -3,7 +3,8 @@
 import React, { useRef, useState } from "react"
 import { CertificateViewer, CertificateDesignConfig } from "@/components/dashboard/certificate-viewer"
 import { Button } from "@/components/ui/button"
-import { Download, ShieldCheck, Printer, Share2, Loader2 } from "lucide-react"
+import { Download, ShieldCheck, Printer, Share2, Loader2, FileText } from "lucide-react"
+import { generatePDF } from "@/lib/pdf-utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
@@ -39,81 +40,29 @@ export function VerificationClient({ certificate }: VerificationClientProps) {
   }
 
   /**
-   * Opens a minimal print window containing only the certificate.
-   * The browser's native print → Save as PDF handles oklch and all modern CSS perfectly.
+   * Generates and downloads a high-quality PDF using our improved utility.
    */
   const handleDownload = async () => {
     if (!certificateRef.current) return
     setIsDownloading(true)
 
     try {
-      const certHTML = certificateRef.current.outerHTML
-
-      // Collect all stylesheets from the current page so the print window has the same CSS
-      const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-        .map((el) => el.outerHTML)
-        .join("\n")
-      const inlineStyles = Array.from(document.querySelectorAll("style"))
-        .map((el) => `<style>${el.innerHTML}</style>`)
-        .join("\n")
-
-      const printWindow = window.open("", "_blank", "width=1200,height=900")
-      if (!printWindow) {
-        alert("Please allow pop-ups to download the PDF, then try again.")
-        return
-      }
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <title>Certificate – ${certificate.recipient_safe_hire_id}</title>
-            ${styleLinks}
-            ${inlineStyles}
-            <style>
-              @page { size: A4 landscape; margin: 0; }
-              html, body {
-                margin: 0; padding: 0;
-                width: 297mm; height: 210mm;
-                background: white;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-              body > div {
-                width: 100%;
-                height: 100%;
-              }
-              /* Hide print UI chrome */
-              @media print {
-                body { margin: 0; }
-              }
-            </style>
-          </head>
-          <body>
-            ${certHTML}
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-
-      // Wait for fonts/images to load, then trigger print dialog
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.focus()
-          printWindow.print()
-          // Close the window after the print dialog is dismissed
-          printWindow.onafterprint = () => printWindow.close()
-        }, 800)
+      const fileName = `Certificate_${certificate.recipient_safe_hire_id}.pdf`
+      const success = await generatePDF(certificateRef.current, fileName)
+      
+      if (!success) {
+        throw new Error("PDF generation utility returned false")
       }
     } catch (error) {
       console.error("Download failed:", error)
+      alert("Failed to generate PDF. You can try 'Print Certificate' as an alternative.")
     } finally {
       setIsDownloading(false)
     }
   }
 
   const handlePrint = () => {
+    // For printing, we still use the browser's native print as it's better for physical printers
     window.print()
   }
 

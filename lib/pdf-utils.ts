@@ -42,53 +42,59 @@ const SAFE_CSS_VARS = `
 
 /**
  * Generates an A4-landscape PDF from an HTML element.
- * Injects safe CSS variable overrides into the cloned document to fix oklch() crashes in html2canvas.
- *
- * @param element  The HTML element to capture (the certificate div)
- * @param filename Filename for the saved PDF
+ * Optimized for high-resolution certificates with zero margins.
  */
 export const generatePDF = async (
   element: HTMLElement,
   filename: string = "certificate.pdf"
 ) => {
   try {
+    // 1. Capture at high scale (3x) for crisp text/logos
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
-      allowTaint: false,
+      allowTaint: true,
       logging: false,
       backgroundColor: "#ffffff",
-      onclone: (clonedDoc) => {
-        // Inject a <style> tag into the cloned document's <head>
-        // This overrides all oklch-based CSS custom properties BEFORE html2canvas renders
+      // Force exact dimensions to prevent responsive scaling issues
+      width: 1000,
+      height: 707,
+      onclone: (clonedDoc, clonedElement) => {
+        // Inject safe CSS variables for oklch support
         const style = clonedDoc.createElement("style")
-        style.textContent = SAFE_CSS_VARS
+        style.textContent = SAFE_CSS_VARS + `
+          /* Remove shadows and transforms that interfere with capture */
+          .certificate-container { 
+            transform: none !important; 
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+        `
         clonedDoc.head.appendChild(style)
+        
+        // Ensure the cloned element itself has no transform or shadow
+        const target = clonedElement as HTMLElement
+        target.style.transform = "none"
+        target.style.boxShadow = "none"
+        target.style.margin = "0"
+        target.style.position = "relative"
       },
     })
 
-    const imgData = canvas.toDataURL("image/png")
+    const imgData = canvas.toDataURL("image/png", 1.0)
 
-    // A4 landscape: 297mm × 210mm
+    // 2. Setup A4 landscape PDF (297mm x 210mm)
     const pdf = new jsPDF({
       orientation: "landscape",
       unit: "mm",
       format: "a4",
+      compress: true
     })
 
-    const pageW = pdf.internal.pageSize.getWidth()   // 297
-    const pageH = pdf.internal.pageSize.getHeight()  // 210
-
-    const imgW = canvas.width / 2
-    const imgH = canvas.height / 2
-
-    const ratio = Math.min(pageW / imgW, pageH / imgH)
-    const finalW = imgW * ratio
-    const finalH = imgH * ratio
-    const offsetX = (pageW - finalW) / 2
-    const offsetY = (pageH - finalH) / 2
-
-    pdf.addImage(imgData, "PNG", offsetX, offsetY, finalW, finalH)
+    // 3. Fill the entire page (0 margin)
+    // A4 Landscape: 297 x 210
+    pdf.addImage(imgData, "PNG", 0, 0, 297, 210, undefined, 'FAST')
     
     if (filename === "blob") {
       return pdf.output("blob")

@@ -1,20 +1,5 @@
 import { createHash } from "crypto"
 
-/**
- * SAFE-HIRE PRIVACY POLICY:
- *
- * We do NOT store the full 12-digit Aadhaar number. Ever.
- * We only extract the LAST 4 DIGITS and the FULL NAME from the Aadhaar card.
- * These two values are combined and hashed with SHA-256 (one-way, irreversible).
- * The original digits and name CANNOT be recovered from the stored hash.
- *
- * This approach:
- *  - Prevents duplicate accounts (same last-4 + same name = same person)
- *  - Complies with UIDAI guidelines on not storing full Aadhaar numbers
- *  - Complies with the DPDPA 2023 data minimization principle
- *  - Protects users even in the unlikely event of a database breach
- */
-
 const SALT = process.env.AADHAAR_SALT || "safe-hire-v1-privacy-by-design"
 
 /**
